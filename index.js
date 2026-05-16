@@ -18,7 +18,7 @@ app.get('/dashboard', (req, res) => {
             console.error('❌ No se encontró el dashboard:', err.message);
             return res.status(404).send('Dashboard no encontrado.');
         }
-        const apiUrl = `http://${req.headers.host}`;
+        const apiUrl = `https://${req.headers.host}`;
         const htmlFinal = html.replace(/__API_URL__/g, apiUrl);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.send(htmlFinal);

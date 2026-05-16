@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export let API_URL = "http://192.168.101.4:3000";
+export let API_URL = "https://backend-asistencia-production-706c.up.railway.app";
 
 export const cargarApiUrl = async () => {
   const guardada = await AsyncStorage.getItem('api_url');

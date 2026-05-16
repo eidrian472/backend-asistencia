@@ -1,0 +1,50 @@
+══════════════════════════════════════════════════════
+  E.T. J.R.G.S — INSTRUCCIONES PARA USO LOCAL/OFFLINE
+══════════════════════════════════════════════════════
+
+OPCIÓN A — Más fácil: servir desde tu propio servidor Node
+──────────────────────────────────────────────────────────
+1. Copia "dashboard_asistencia_et_jrgs_v2.html" a la carpeta de tu proyecto Node
+2. Agrega esta línea en tu index.js (ANTES de las rutas):
+
+     app.use(express.static(__dirname));
+
+3. Reinicia el servidor: node index.js
+4. Abre en el navegador: http://localhost:3000/dashboard_asistencia_et_jrgs_v2.html
+   (o desde otro PC en la red: http://192.168.101.8:3000/dashboard_asistencia_et_jrgs_v2.html)
+
+➜ Así el dashboard se sirve desde tu propio Express,
+  no depende de internet para los recursos externos.
+  Los íconos y fuentes se cargan desde la CDN solo si hay internet;
+  si no hay, el fallback visual integrado en el CSS mantiene todo funcional.
+
+
+OPCIÓN B — Totalmente sin internet (fuentes y íconos locales)
+──────────────────────────────────────────────────────────────
+1. Descarga estos archivos cuando tengas internet y ponlos en una carpeta "assets/":
+   - https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js
+   - https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css
+   - La carpeta de fuentes de Tabler Icons (fonts/)
+
+2. En el HTML cambia las 3 líneas del <head>:
+   BORRAR:
+     <link rel="preconnect" href="https://fonts.googleapis.com">
+     <link href="https://fonts.googleapis.com/css2?...">
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont...">
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+   REEMPLAZAR POR:
+     <link rel="stylesheet" href="assets/tabler-icons.min.css">
+     <script src="assets/chart.js"></script>
+
+OPCIÓN C — Sin cambiar nada (red local sin acceso a internet)
+──────────────────────────────────────────────────────────────
+El dashboard tiene fallbacks CSS integrados:
+- Si los íconos no cargan → se muestran símbolos de texto
+- Si Chart.js no carga → las secciones de gráficas muestran "Gráfico no disponible"
+- Las tablas, filtros y toda la lógica de datos funcionan igual
+
+En resumen: tablas y datos funcionan SIEMPRE.
+Solo los gráficos del Resumen necesitan Chart.js.
+
+══════════════════════════════════════════════════════

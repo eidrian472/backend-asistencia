@@ -1,0 +1,3004 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E.T. J.R.G.S — Panel de Administración</title>
+<!--
+  ╔══════════════════════════════════════════════════╗
+  ║  MODO OFFLINE — leer dashboard_offline_LEEME.txt ║
+  ╚══════════════════════════════════════════════════╝
+  Para usar SIN internet, descarga estos archivos y ponlos en assets/:
+    chart.umd.js      → cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js
+    tabler-icons.min.css → cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css
+  Luego reemplaza las líneas CDN por:
+    <link rel="stylesheet" href="assets/tabler-icons.min.css">
+    <script src="assets/chart.umd.js"></script>
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+<style>
+/* ───── RESET & TOKENS ───── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #E4EFFF;
+  --surface:   #C8DFFF;
+  --surface2:  #B0CFFA;
+  --surface3:  #99C4EF;
+  --border:    #99C4EF;
+  --border2:   #5A9FDE;
+  --text:      #0D2340;
+  --text2:     #2B5280;
+  --text3:     #5A80A8;
+  --text4:     #8AAAC8;
+  --sky:       #5A9FDE;
+  --sky-dim:   rgba(90,159,222,.14);
+  --sky-glow:  rgba(90,159,222,.30);
+  --green:     #10B981;
+  --green-dim: rgba(16,185,129,.14);
+  --red:       #EF4444;
+  --red-dim:   rgba(239,68,68,.12);
+  --amber:     #F5A800;
+  --amber-dim: rgba(245,168,0,.14);
+  --indigo:    #818CF8;
+  --indigo-dim:rgba(129,140,248,.12);
+  --accent:        #F5A800;
+  --accent-dark:   #C47F00;
+  --accent-light:  #FFF0C2;
+  --card-bg:   #5B9BD5;
+  --card-border:#4180BB;
+  --side:      240px;
+  --radius-sm: 10px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Fira Code', 'Consolas', 'Courier New', monospace;
+}
+
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ───── LAYOUT ───── */
+.layout { display: flex; min-height: 100vh; }
+
+/* ───── SIDEBAR ───── */
+.sidebar {
+  width: var(--side);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sky-dim);
+  border: 1px solid var(--sky-glow);
+  border-radius: 10px;
+  padding: 6px 12px;
+  margin-bottom: 10px;
+}
+.logo-badge span { color: var(--accent-dark); font-size: 13px; font-weight: 800; letter-spacing: .5px; }
+.logo-name { font-size: 15px; font-weight: 800; color: var(--text); line-height: 1.3; }
+.logo-sub  { font-size: 11px; color: var(--text3); margin-top: 2px; font-weight: 500; }
+
+.nav { padding: 14px 0; flex: 1; }
+.nav-section {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.8px;
+  color: var(--text4); padding: 10px 20px 6px; text-transform: uppercase;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 20px; cursor: pointer; font-size: 14px; font-weight: 600;
+  color: var(--text3); border-left: 3px solid transparent;
+  transition: all .18s ease; position: relative;
+}
+.nav-item i { font-size: 18px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-item:hover { background: var(--surface2); color: var(--text2); }
+.nav-item.active {
+  background: var(--amber-dim);
+  color: var(--accent-dark);
+  border-left-color: var(--accent);
+}
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+.api-dot {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--green-dim); border: 1px solid rgba(16,185,129,.25);
+  border-radius: 10px; padding: 8px 12px;
+}
+.api-dot-circle {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+.api-dot span { font-size: 11px; color: var(--green); font-family: var(--mono); font-weight: 500; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+/* ───── MAIN ───── */
+.main { flex: 1; overflow: auto; min-width: 0; }
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 10;
+}
+.topbar-left { display: flex; flex-direction: column; }
+.topbar-label { font-size: 10px; font-weight: 700; color: var(--text4); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2px; }
+.topbar-title { font-size: 20px; font-weight: 900; color: var(--text); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* ───── PAGES ───── */
+.page { display: none; padding: 28px; animation: fadein .22s ease; }
+.page.active { display: block; }
+@keyframes fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+/* ───── METRIC GRID ───── */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: border-color .18s;
+  position: relative; overflow: hidden;
+}
+.metric::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: var(--radius);
+  opacity: 0;
+  transition: opacity .18s;
+}
+.metric:hover { border-color: var(--border2); }
+.metric-icon {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 14px; flex-shrink: 0;
+}
+.metric-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: .5px; margin-bottom: 6px; text-transform: uppercase; }
+.metric-val { font-size: 32px; font-weight: 900; color: var(--text); line-height: 1; }
+.metric-sub { font-size: 12px; color: var(--text3); margin-top: 5px; font-weight: 500; }
+
+/* ───── CARDS ───── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.section-title {
+  font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title i { color: var(--accent); font-size: 17px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+
+/* ───── CHART ───── */
+.chart-wrap { position: relative; width: 100%; height: 230px; }
+
+/* ───── TABLES ───── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead { }
+th {
+  font-size: 10px; font-weight: 800; color: var(--text4);
+  text-align: left; padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap; text-transform: uppercase; letter-spacing: 1px;
+}
+td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 14px; font-weight: 500;
+}
+tr:last-child td { border-bottom: none; }
+tbody tr { transition: background .12s; }
+tbody tr:hover td { background: var(--surface2); }
+
+/* ───── BADGES / PILLS ───── */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 800; padding: 4px 10px;
+  border-radius: 20px; letter-spacing: .3px;
+}
+.pill-green  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,.25); }
+.pill-red    { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(239,68,68,.25); }
+.pill-amber  { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,.25); }
+.pill-sky    { background: var(--sky-dim);   color: var(--sky);   border: 1px solid var(--sky-glow); }
+.pill-gray   { background: var(--surface2);  color: var(--text3); border: 1px solid var(--border2); }
+.pill-indigo { background: var(--indigo-dim);color: var(--indigo);border: 1px solid rgba(129,140,248,.25); }
+
+/* ───── FILTERS ───── */
+.filter-bar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;
+}
+.filter-bar select, .filter-bar input {
+  font-family: var(--font);
+  font-size: 13px; font-weight: 600;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text2);
+  outline: none;
+  transition: border-color .15s;
+}
+.filter-bar select:focus, .filter-bar input:focus { border-color: var(--accent); }
+.filter-bar input::placeholder { color: var(--text4); }
+
+/* ───── BUTTONS ───── */
+.btn {
+  font-family: var(--font);
+  font-size: 13px; font-weight: 700;
+  padding: 9px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all .15s;
+}
+.btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.btn-primary {
+  background: var(--accent); color: var(--accent-dark); border-color: var(--accent); font-weight: 800;
+}
+.btn-primary:hover { background: #29aee8; }
+.btn-danger {
+  background: var(--red-dim); color: var(--red); border-color: rgba(239,68,68,.25); font-weight: 800;
+}
+
+/* ───── MISC ───── */
+.empty {
+  padding: 50px 20px; text-align: center; color: var(--text4);
+  font-size: 14px; font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.empty i { font-size: 32px; color: var(--border2); }
+
+.flex-row { display: flex; align-items: center; gap: 10px; }
+
+.avatar {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--amber-dim); border: 1px solid rgba(245,168,0,.25);
+  color: var(--accent-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+
+.spinner {
+  display: flex; justify-content: center; align-items: center;
+  gap: 10px; padding: 40px; color: var(--text3);
+  font-size: 14px; font-weight: 600;
+}
+.spinner i { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.progress-bg { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+.warn-box {
+  background: var(--red-dim); border: 1px solid rgba(239,68,68,.25);
+  border-radius: var(--radius); padding: 14px 18px;
+  font-size: 13px; font-weight: 600; color: var(--red);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 10px;
+}
+.warn-box i { font-size: 20px; }
+
+/* ───── ENCABEZADO DE MENCIÓN (historial) ───── */
+.mencion-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 18px; margin-bottom: 8px; margin-top: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mencion-header-name { font-size: 16px; font-weight: 900; color: var(--text); }
+.mencion-header-ano  { font-size: 12px; font-weight: 700; color: var(--indigo); margin-top: 2px; }
+
+/* ───── COLOR ACCENTS PER MENCIÓN ───── */
+.acc-tele    { color: var(--sky);    background: var(--sky-dim);    border-color: var(--sky-glow); }
+.acc-tur     { color: var(--green);  background: var(--green-dim);  border-color: rgba(16,185,129,.25); }
+.acc-adm     { color: var(--amber);  background: var(--amber-dim);  border-color: rgba(245,158,11,.25); }
+.acc-cont    { color: var(--indigo); background: var(--indigo-dim); border-color: rgba(129,140,248,.25); }
+
+/* ───── STAT CARD (para estadísticas) ───── */
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  margin-bottom: 12px;
+}
+.stat-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.stat-card-name   { font-size: 15px; font-weight: 800; color: var(--text); flex: 1; padding-right: 10px; }
+.stat-pct         { font-size: 20px; font-weight: 900; }
+.stat-row         { display: flex; justify-content: space-around; margin-bottom: 12px; }
+.stat-box         { text-align: center; }
+.stat-num         { font-size: 18px; font-weight: 900; color: var(--text); }
+.stat-label       { font-size: 11px; font-weight: 700; color: var(--text3); margin-top: 2px; }
+
+/* ───── MODAL PERFIL ESTUDIANTE ───── */
+#modal-estudiante {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  background: rgba(2,6,23,.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+}
+#modal-estudiante.open {
+  opacity: 1; pointer-events: all;
+}
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 24px;
+  width: 100%; max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 0 0 1px rgba(90,159,222,.15), 0 32px 80px rgba(13,35,64,.15);
+  transform: translateY(20px) scale(.97);
+  transition: transform .22s cubic-bezier(.16,1,.3,1);
+}
+#modal-estudiante.open .modal-card {
+  transform: translateY(0) scale(1);
+}
+.modal-header {
+  padding: 22px 22px 0;
+  display: flex; justify-content: flex-end;
+}
+.modal-close {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text3); font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.modal-close:hover { background: var(--surface3); color: var(--text); }
+.modal-avatar-section {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 4px 24px 20px; text-align: center;
+}
+.modal-avatar {
+  width: 72px; height: 72px; border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900;
+  margin-bottom: 14px;
+  border: 2px solid transparent;
+  position: relative;
+}
+.modal-nombre {
+  font-size: 20px; font-weight: 900; color: var(--text);
+  margin-bottom: 3px;
+}
+.modal-sub {
+  font-size: 13px; color: var(--text3); font-weight: 600;
+  margin-bottom: 12px;
+}
+.modal-pills {
+  display: flex; gap: 7px; flex-wrap: wrap; justify-content: center;
+}
+.modal-body {
+  padding: 0 20px 22px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.modal-info-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface2); border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+}
+.modal-info-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--surface3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.modal-info-label {
+  font-size: 10px; font-weight: 800; color: var(--text4);
+  letter-spacing: .7px; text-transform: uppercase; margin-bottom: 2px;
+}
+.modal-info-val {
+  font-size: 14px; font-weight: 700; color: var(--text);
+}
+.modal-footer {
+  border-top: 1px solid var(--border);
+  padding: 14px 20px;
+  background: var(--surface);
+}
+.modal-asist-row {
+  display: flex; gap: 8px;
+}
+.modal-asist-box {
+  flex: 1; background: var(--surface2); border-radius: 12px;
+  padding: 12px 10px; text-align: center;
+  border: 1px solid var(--border);
+}
+.modal-asist-num { font-size: 22px; font-weight: 900; color: var(--text); }
+.modal-asist-label { font-size: 10px; font-weight: 800; color: var(--text4); text-transform: uppercase; letter-spacing: .6px; margin-top: 2px; }
+.modal-pct-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.modal-pct-fill { height: 100%; border-radius: 3px; transition: width .5s ease .1s; }
+
+/* Nombre clickeable en tablas */
+.est-link {
+  cursor: pointer;
+  transition: color .15s;
+}
+.est-link:hover { color: var(--accent-dark) !important; text-decoration: underline; text-underline-offset: 3px; }
+.est-link-inv { cursor: default; }  /* invitado: sin interacción */
+.nav-item.nav-locked {
+  opacity: .35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.nav-item.nav-locked::after {
+  content: '\eb79'; /* ti-lock */
+  font-family: 'tabler-icons';
+  font-size: 12px;
+  margin-left: auto;
+  color: var(--text4);
+}
+.rol-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 18px; border-radius: var(--radius);
+  margin-bottom: 20px; font-size: 13px; font-weight: 700;
+}
+.rol-banner-info  { background: var(--sky-dim);    border: 1px solid var(--sky-glow);               color: var(--sky);    }
+.rol-banner-warn  { background: var(--amber-dim);  border: 1px solid rgba(245,158,11,.25);           color: var(--amber);  }
+.rol-banner-block { background: var(--red-dim);    border: 1px solid rgba(239,68,68,.25);            color: var(--red);    }
+.rol-banner i { font-size: 19px; flex-shrink: 0; }
+
+.page-locked {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 80px 30px; text-align: center;
+  color: var(--text4);
+}
+.page-locked i { font-size: 48px; margin-bottom: 16px; color: var(--border2); }
+.page-locked h3 { font-size: 17px; font-weight: 800; color: var(--text3); margin-bottom: 8px; }
+.page-locked p  { font-size: 13px; font-weight: 500; max-width: 320px; }
+
+/* filter options hidden by role */
+.role-hidden { display: none !important; }
+
+/* ───── SCROLLBAR ───── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; opacity: .6; }
+
+/* ───── REGISTRO ASISTENCIA DOCENTE ───── */
+.doc-reg-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-bottom: 14px;
+  transition: border-left-color .2s;
+}
+.doc-reg-card.estado-Presente { border-left-color: var(--green); }
+.doc-reg-card.estado-Ausente  { border-left-color: var(--red);   }
+.doc-reg-card.estado-Tardanza { border-left-color: var(--amber); }
+.doc-reg-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.doc-reg-avatar {
+  width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+  background: var(--amber-dim); border: 1px solid rgba(245,168,0,.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900; color: var(--accent-dark);
+}
+.doc-reg-nombre { font-size: 16px; font-weight: 800; color: var(--text); }
+.doc-reg-materia { font-size: 12px; font-weight: 600; color: var(--text4); margin-top: 2px; }
+.doc-reg-btns { display: flex; gap: 8px; margin-bottom: 14px; }
+.doc-reg-btn {
+  flex: 1; padding: 10px 6px; border-radius: 11px;
+  font-family: var(--font); font-size: 12px; font-weight: 800;
+  cursor: pointer; border: 1px solid var(--border2);
+  background: var(--surface2); color: var(--text4); transition: all .15s;
+}
+.doc-reg-btn:hover { background: var(--surface3); color: var(--text2); }
+.doc-reg-btn.active-Presente { background: var(--green); color: #fff; border-color: var(--green); }
+.doc-reg-btn.active-Ausente  { background: var(--red);   color: #fff;    border-color: var(--red);   }
+.doc-reg-btn.active-Tardanza { background: var(--amber); color: #0D2340; border-color: var(--amber); }
+.bloque-grid { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.bloque-btn {
+  flex: 1; min-width: 100px; padding: 10px 8px; border-radius: 11px;
+  font-family: var(--font); font-size: 11px; font-weight: 800;
+  cursor: pointer; border: 1px solid var(--border2);
+  background: var(--surface2); color: var(--text4); transition: all .15s; text-align: center;
+}
+.bloque-btn:hover { background: var(--surface3); }
+.bloque-btn.active { background: var(--indigo-dim); color: var(--indigo); border-color: rgba(129,140,248,.4); }
+.bloque-btn-horas { font-size: 10px; font-weight: 500; color: var(--text4); margin-top: 3px; }
+.bloque-btn.active .bloque-btn-horas { color: var(--indigo); }
+.doc-reg-obs {
+  width: 100%; font-family: var(--font); font-size: 13px; font-weight: 500;
+  padding: 10px 14px; background: var(--bg);
+  border: 1px solid var(--border2); border-radius: 11px; color: var(--text);
+  resize: vertical; min-height: 48px; margin-bottom: 14px; box-sizing: border-box;
+}
+.doc-reg-obs:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,168,0,.15); }
+.doc-reg-obs::placeholder { color: var(--text4); }
+.doc-reg-save {
+  width: 100%; padding: 11px; background: var(--accent); color: var(--accent-dark);
+  border: none; border-radius: 11px; font-family: var(--font);
+  font-size: 13px; font-weight: 800; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px; transition: all .15s;
+}
+.doc-reg-save:hover { background: #29aee8; }
+.doc-reg-save:disabled { opacity: .5; cursor: not-allowed; }
+.doc-resumen-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.doc-resumen-chip {
+  flex: 1; min-width: 100px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-align: center;
+}
+.doc-resumen-num { font-size: 28px; font-weight: 900; }
+.doc-resumen-label { font-size: 10px; font-weight: 800; color: var(--text4); text-transform: uppercase; letter-spacing: .8px; margin-top: 4px; }
+.bloques-ref { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.bloque-ref-item {
+  flex: 1; min-width: 120px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-align: center;
+}
+.bloque-ref-label { font-size: 12px; font-weight: 800; color: var(--text); }
+.bloque-ref-h { font-size: 11px; font-weight: 500; color: var(--text4); margin-top: 3px; }
+
+/* ───── RESPONSIVE ───── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .grid2 { grid-template-columns: 1fr; }
+  .page { padding: 16px; }
+}
+
+/* ───── SEPARATOR ───── */
+.sep { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.sep-line { flex: 1; height: 1px; background: var(--border); }
+.sep-text { font-size: 9px; font-weight: 800; letter-spacing: 1.8px; color: var(--text4); text-transform: uppercase; }
+
+/* year color strips */
+.ano-strip-1 { border-left-color: #A8DFFE; }
+.ano-strip-2 { border-left-color: #10B981; }
+.ano-strip-3 { border-left-color: #F59E0B; }
+.ano-strip-4 { border-left-color: #818CF8; }
+.ano-strip-5 { border-left-color: #F472B6; }
+
+/* ───── LOGIN OVERLAY ───── */
+#login-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+#login-overlay.hidden { display: none; }
+
+.login-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(90,159,222,.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(245,168,0,.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+.login-grid-lines {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden; opacity: .04;
+  background-image:
+    linear-gradient(var(--border2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border2) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.login-card {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 24px;
+  padding: 40px 40px 36px;
+  box-shadow: 0 0 0 1px rgba(90,159,222,.15), 0 24px 60px rgba(13,35,64,.12);
+  animation: loginSlideIn .35s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes loginSlideIn {
+  from { opacity:0; transform: translateY(28px) scale(.97); }
+  to   { opacity:1; transform: translateY(0)    scale(1);   }
+}
+
+.login-logo {
+  text-align: center; margin-bottom: 32px;
+}
+.login-logo-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent-light); border: 1px solid var(--accent);
+  border-radius: 12px; padding: 8px 16px; margin-bottom: 14px;
+}
+.login-logo-badge i { color: var(--accent); font-size: 18px; }
+.login-logo-badge span { color: var(--accent); font-size: 14px; font-weight: 800; letter-spacing: .5px; }
+.login-title { font-size: 22px; font-weight: 900; color: var(--text); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: var(--text3); font-weight: 500; }
+
+.login-field { margin-bottom: 16px; }
+.login-field label {
+  display: block; font-size: 11px; font-weight: 800; color: var(--text3);
+  letter-spacing: .8px; text-transform: uppercase; margin-bottom: 7px;
+}
+.login-input-wrap { position: relative; }
+.login-input-wrap i {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 17px; color: var(--text4); pointer-events: none;
+  transition: color .15s;
+}
+.login-input {
+  width: 100%; font-family: var(--font); font-size: 14px; font-weight: 600;
+  padding: 12px 14px 12px 42px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 12px; color: var(--text);
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.login-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,168,0,.15); }
+.login-input:focus + i, .login-input-wrap:focus-within i { color: var(--accent); }
+.login-input::placeholder { color: var(--text4); }
+
+/* eye toggle inside password */
+.login-eye {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  cursor: pointer; font-size: 17px; color: var(--text4);
+  background: none; border: none; padding: 0;
+  transition: color .15s; left: unset;
+  pointer-events: all;
+}
+.login-eye:hover { color: var(--text2); }
+
+.login-error {
+  font-size: 12px; font-weight: 700; color: var(--red);
+  margin-top: 6px; display: none; align-items: center; gap: 5px;
+}
+.login-error.show { display: flex; }
+
+.btn-login {
+  width: 100%; padding: 13px;
+  background: var(--accent); color: var(--accent-dark);
+  border: none; border-radius: 12px;
+  font-family: var(--font); font-size: 15px; font-weight: 800;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 8px;
+}
+.btn-login:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(245,168,0,.30); }
+.btn-login:active { transform: translateY(0); }
+.btn-login:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.btn-login .spinner-btn { display: none; }
+.btn-login.loading .spinner-btn { display: inline-block; animation: spin 1s linear infinite; }
+.btn-login.loading .btn-login-text { display: none; }
+
+.login-divider {
+  display: flex; align-items: center; gap: 12px; margin: 18px 0;
+}
+.login-divider span { font-size: 10px; font-weight: 800; color: var(--text4); letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; }
+.login-divider::before, .login-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border2);
+}
+
+.btn-guest {
+  width: 100%; padding: 11px;
+  background: transparent; color: var(--text3);
+  border: 1px solid var(--border2); border-radius: 12px;
+  font-family: var(--font); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.btn-guest:hover { background: var(--surface2); color: var(--text2); border-color: var(--border2); }
+
+.login-footer {
+  text-align: center; margin-top: 24px; font-size: 11px; color: var(--text4); font-weight: 500;
+}
+
+/* ───── USER CHIP IN TOPBAR ───── */
+.user-chip {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 6px 12px 6px 8px;
+  cursor: pointer; transition: all .15s; position: relative;
+}
+.user-chip:hover { border-color: var(--border2); background: var(--surface3); }
+.user-chip-avatar {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; flex-shrink: 0;
+}
+.user-chip-info { display: flex; flex-direction: column; line-height: 1.2; }
+.user-chip-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.user-chip-role { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; }
+
+.user-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 8px;
+  min-width: 180px; box-shadow: 0 16px 48px rgba(13,35,64,.15);
+  display: none; z-index: 100;
+  animation: menuIn .15s ease;
+}
+@keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+.user-menu.open { display: block; }
+.user-menu-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px; border-radius: 9px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text3);
+  transition: all .12s;
+}
+.user-menu-item:hover { background: var(--surface2); color: var(--text); }
+.user-menu-item.danger { color: var(--red); }
+.user-menu-item.danger:hover { background: var(--red-dim); }
+
+/* role badges */
+.role-admin   { background: var(--amber-dim);  color: var(--accent-dark); }
+.role-docente { background: var(--green-dim);  color: var(--green);  }
+.role-invitado{ background: var(--surface3);   color: var(--text3);  }
+
+/* ───── MATRÍCULA ADMIN ───── */
+.mat-input {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 14px; font-weight: 600;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  margin-bottom: 4px;
+  box-sizing: border-box;
+}
+.mat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,168,0,.15); }
+.mat-input::placeholder { color: var(--text4); }
+.mat-input.mat-err { border-color: var(--red); background: rgba(239,68,68,.06); }
+textarea.mat-input { resize: vertical; }
+.mat-field-err {
+  font-size: 12px; font-weight: 700; color: var(--red);
+  display: flex; align-items: center; gap: 5px;
+  min-height: 18px; margin-bottom: 8px; margin-left: 2px;
+}
+.mat-toggle-btn {
+  font-family: var(--font);
+  padding: 0; margin: 0;
+  border-radius: 11px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  color: var(--text3); font-weight: 800;
+  cursor: pointer; transition: all .15s;
+}
+.mat-toggle-btn:hover { background: var(--surface3); color: var(--text); }
+.mat-toggle-btn.active { background: var(--accent); color: var(--accent-dark); border-color: var(--accent); }
+.mat-banner {
+  display: none; flex-direction: row; align-items: center;
+  border-radius: 12px; padding: 12px 18px;
+  margin-bottom: 16px; gap: 10px;
+}
+.mat-banner.err  { background: var(--red-dim);   border: 1px solid rgba(239,68,68,.25); }
+.mat-banner.ok   { background: var(--green-dim); border: 1px solid rgba(16,185,129,.25); }
+.mat-banner i    { font-size: 18px; }
+.mat-banner span { font-size: 13px; font-weight: 700; }
+.mat-banner.err  i, .mat-banner.err  span { color: var(--red); }
+.mat-banner.ok   i, .mat-banner.ok   span { color: var(--green); }
+
+</style>
+</head>
+<body>
+
+<!-- ─── LOGIN OVERLAY ─── -->
+<div id="login-overlay">
+  <div class="login-bg"></div>
+  <div class="login-grid-lines"></div>
+  <div class="login-card">
+
+    <div class="login-logo">
+      <div class="login-logo-badge">
+        <i class="ti ti-school"></i>
+        <span>E.T. J.R.G.S</span>
+      </div>
+      <div class="login-title">Panel de Administración</div>
+      <div class="login-sub">Prof. José Ricardo Guillén Suárez</div>
+    </div>
+
+    <div class="login-field">
+      <label>Usuario</label>
+      <div class="login-input-wrap">
+        <input type="text" id="login-user" class="login-input" placeholder="Ingresa tu usuario" autocomplete="username" />
+        <i class="ti ti-user"></i>
+      </div>
+      <div class="login-error" id="err-usuario"><i class="ti ti-alert-circle"></i><span id="err-usuario-msg"></span></div>
+    </div>
+
+    <div class="login-field">
+      <label>Contraseña</label>
+      <div class="login-input-wrap">
+        <input type="password" id="login-pass" class="login-input" placeholder="Ingresa tu contraseña" autocomplete="current-password" />
+        <i class="ti ti-lock"></i>
+        <button type="button" class="login-eye" id="toggle-pass" tabindex="-1">
+          <i class="ti ti-eye" id="eye-icon"></i>
+        </button>
+      </div>
+      <div class="login-error" id="err-contrasena"><i class="ti ti-alert-circle"></i><span id="err-contrasena-msg"></span></div>
+    </div>
+
+    <div class="login-error" id="err-general" style="margin-bottom:10px"><i class="ti ti-alert-triangle"></i><span id="err-general-msg"></span></div>
+
+    <button class="btn-login" id="btn-ingresar" onclick="intentarLogin()">
+      <i class="ti ti-login spinner-btn" id="btn-spinner"></i>
+      <span class="btn-login-text"><i class="ti ti-login"></i> Ingresar</span>
+    </button>
+
+    <div class="login-divider"><span>o</span></div>
+
+    <button class="btn-guest" onclick="entrarComoInvitado()">
+      <i class="ti ti-eye"></i> Ingresar como invitado
+    </button>
+
+    <div class="login-footer">Solo lectura · Todos los datos son de la institución</div>
+  </div>
+</div>
+
+<div class="layout" id="main-layout" style="display:none">
+
+  <!-- ─── SIDEBAR ─── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-badge">
+        <i class="ti ti-school" style="color:var(--accent-dark);font-size:14px"></i>
+        <span>E.T. J.R.G.S</span>
+      </div>
+      <div class="logo-name" id="sidebar-nombre">Prof. José Ricardo<br>Guillén Suárez</div>
+      <div class="logo-sub" id="sidebar-rol">Panel de Administración</div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section">General</div>
+      <div class="nav-item active" data-page="resumen">
+        <i class="ti ti-layout-dashboard"></i>Resumen
+      </div>
+      <div class="nav-item" data-page="historial">
+        <i class="ti ti-calendar-event"></i>Historial
+      </div>
+
+      <div class="nav-section">Estudiantes</div>
+      <div class="nav-item" data-page="estudiantes">
+        <i class="ti ti-users"></i>Estudiantes
+      </div>
+      <div class="nav-item" data-page="inasistencias">
+        <i class="ti ti-alert-triangle"></i>Inasistencias
+      </div>
+      <div class="nav-item" data-page="estadisticas">
+        <i class="ti ti-chart-bar"></i>Estadísticas
+      </div>
+
+      <div class="nav-section" id="nav-sec-personal">Personal</div>
+      <div class="nav-item" data-page="docentes" id="nav-docentes">
+        <i class="ti ti-id-badge-2"></i>Docentes
+      </div>
+
+      <div class="nav-section" id="nav-sec-admin" style="display:none">Administración</div>
+      <div class="nav-item" data-page="matricula" id="nav-matricula" style="display:none">
+        <i class="ti ti-user-plus"></i>Matrícula
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="api-dot">
+        <div class="api-dot-circle"></div>
+        <span>192.168.101.8:3000</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN ─── -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-label" id="topbar-label">Panel Administrativo</div>
+        <div class="topbar-title" id="page-title">Resumen general</div>
+      </div>
+      <div class="topbar-right">
+        <span id="top-date" style="font-size:12px;font-weight:600;color:var(--text3)"></span>
+        <!-- User chip (shown after login) -->
+        <div class="user-chip" id="user-chip" onclick="toggleUserMenu()" style="display:none">
+          <div class="user-chip-avatar" id="chip-avatar"></div>
+          <div class="user-chip-info">
+            <span class="user-chip-name" id="chip-name"></span>
+            <span class="user-chip-role" id="chip-role"></span>
+          </div>
+          <i class="ti ti-chevron-down" style="font-size:13px;color:var(--text4);margin-left:2px"></i>
+          <div class="user-menu" id="user-menu">
+            <div class="user-menu-item danger" onclick="cerrarSesion(event)">
+              <i class="ti ti-logout"></i> Cerrar sesión
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RESUMEN ── -->
+    <div class="page active" id="page-resumen">
+      <div id="resumen-content">
+        <div class="spinner"><i class="ti ti-loader-2"></i> Cargando datos…</div>
+      </div>
+    </div>
+
+    <!-- ── HISTORIAL ── -->
+    <div class="page" id="page-historial">
+      <div id="historial-rol-banner"></div>
+      <div class="filter-bar">
+        <input type="date" id="hist-fecha" />
+        <select id="hist-mencion">
+          <option value="">Todas las menciones</option>
+          <option>Telemática</option><option>Turismo</option>
+          <option>Administración</option><option>Contabilidad</option>
+        </select>
+        <select id="hist-ano">
+          <option value="">Todos los años</option>
+          <option value="1" class="ano-opt-1">1er Año</option><option value="2" class="ano-opt-2">2do Año</option>
+          <option value="3" class="ano-opt-3">3er Año</option><option value="4" class="ano-opt-4">4to Año</option>
+          <option value="5" class="ano-opt-5">5to Año</option>
+        </select>
+        <button class="btn btn-primary" onclick="cargarHistorial()">
+          <i class="ti ti-search"></i> Buscar
+        </button>
+        <button class="btn" id="btn-export-historial" onclick="exportarHistorialExcel()" style="display:none;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:#10B981;font-weight:700;gap:6px">
+          <i class="ti ti-file-spreadsheet"></i> Excel
+        </button>
+      </div>
+      <div class="card">
+        <div class="table-wrap" id="hist-tabla">
+          <div class="empty"><i class="ti ti-calendar-search"></i>Selecciona una fecha y presiona Buscar</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ESTUDIANTES ── -->
+    <div class="page" id="page-estudiantes">
+      <div id="estudiantes-rol-banner"></div>
+      <div class="filter-bar">
+        <input type="text" id="est-buscar" placeholder="Buscar por nombre o cédula…" style="flex:1;max-width:300px">
+        <select id="est-mencion">
+          <option value="">Todas las menciones</option>
+          <option>Telemática</option><option>Turismo</option>
+          <option>Administración</option><option>Contabilidad</option>
+        </select>
+        <select id="est-ano">
+          <option value="">Todos los años</option>
+          <option value="1" class="ano-opt-1">1°</option><option value="2" class="ano-opt-2">2°</option>
+          <option value="3" class="ano-opt-3">3°</option><option value="4" class="ano-opt-4">4°</option><option value="5" class="ano-opt-5">5°</option>
+        </select>
+        <button class="btn" onclick="filtrarEstudiantes()">
+          <i class="ti ti-filter"></i> Filtrar
+        </button>
+      </div>
+      <div class="card">
+        <div class="table-wrap" id="est-tabla">
+          <div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INASISTENCIAS ── -->
+    <div class="page" id="page-inasistencias">
+      <div class="filter-bar">
+        <select id="ina-mencion">
+          <option value="">Todas las menciones</option>
+          <option>Telemática</option><option>Turismo</option>
+          <option>Administración</option><option>Contabilidad</option>
+        </select>
+        <select id="ina-ano">
+          <option value="">Todos los años</option>
+          <option value="1" class="ano-opt-1">1°</option><option value="2" class="ano-opt-2">2°</option>
+          <option value="3" class="ano-opt-3">3°</option><option value="4" class="ano-opt-4">4°</option><option value="5" class="ano-opt-5">5°</option>
+        </select>
+        <button class="btn btn-primary" onclick="cargarInasistencias()">
+          <i class="ti ti-search"></i> Buscar
+        </button>
+        <button class="btn" id="btn-export-inasistencias" onclick="exportarInasistenciasExcel()" style="display:none;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:#10B981;font-weight:700;gap:6px">
+          <i class="ti ti-file-spreadsheet"></i> Excel
+        </button>
+      </div>
+      <div class="card">
+        <div class="table-wrap" id="ina-tabla">
+          <div class="empty"><i class="ti ti-alert-circle"></i>Selecciona los filtros y presiona Buscar</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ESTADÍSTICAS ── -->
+    <div class="page" id="page-estadisticas">
+      <div id="estadisticas-rol-banner"></div>
+      <div class="filter-bar" style="margin-bottom:20px">
+        <select id="stat-mencion" onchange="cargarEstadisticas()" style="font-size:14px;font-weight:700;">
+          <option value="Telemática">Telemática</option>
+          <option value="Turismo">Turismo</option>
+          <option value="Administración">Administración</option>
+          <option value="Contabilidad">Contabilidad</option>
+        </select>
+        <button class="btn" id="btn-export-estadisticas" onclick="exportarEstadisticasExcel()" style="display:none;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:#10B981;font-weight:700;gap:6px">
+          <i class="ti ti-file-spreadsheet"></i> Excel
+        </button>
+      </div>
+      <div id="stat-content">
+        <div class="empty"><i class="ti ti-chart-bar"></i>Selecciona una mención</div>
+      </div>
+    </div>
+
+    <!-- ── DOCENTES ── -->
+    <div class="page" id="page-docentes">
+
+      <!-- Tabs (solo admin ve "Registrar asistencia") -->
+      <div id="doc-tabs" style="display:flex;gap:8px;margin-bottom:22px">
+        <button class="btn btn-primary" id="doc-tab-registro"  onclick="docTab('registro')" style="display:none">
+          <i class="ti ti-pencil-check"></i> Registrar asistencia
+        </button>
+        <button class="btn" id="doc-tab-personal" onclick="docTab('personal')">
+          <i class="ti ti-users"></i> Personal
+        </button>
+        <button class="btn" id="doc-tab-historial" onclick="docTab('historial')">
+          <i class="ti ti-history"></i> Historial
+        </button>
+      </div>
+
+      <!-- ── PANEL: REGISTRAR ASISTENCIA (solo admin) ── -->
+      <div id="doc-panel-registro" style="display:none">
+
+        <!-- Referencia de bloques horarios -->
+        <div class="card" style="margin-bottom:18px">
+          <div class="section-title" style="margin-bottom:12px">
+            <i class="ti ti-clock"></i>Bloques del turno tarde
+          </div>
+          <div class="bloques-ref">
+            <div class="bloque-ref-item">
+              <div class="bloque-ref-label">1ra Clase</div>
+              <div class="bloque-ref-h">12:45 – 1:25 · 1:25 – 2:05</div>
+            </div>
+            <div class="bloque-ref-item">
+              <div class="bloque-ref-label">2da Clase</div>
+              <div class="bloque-ref-h">2:05 – 2:45 · 2:45 – 3:25</div>
+            </div>
+            <div class="bloque-ref-item" style="border-color:rgba(245,158,11,.3)">
+              <div class="bloque-ref-label" style="color:var(--amber)">Receso</div>
+              <div class="bloque-ref-h">3:25 – 3:35</div>
+            </div>
+            <div class="bloque-ref-item">
+              <div class="bloque-ref-label">3ra Clase</div>
+              <div class="bloque-ref-h">3:35 – 4:15 · 4:15 – 4:55</div>
+            </div>
+            <div class="bloque-ref-item">
+              <div class="bloque-ref-label">4ta Clase</div>
+              <div class="bloque-ref-h">4:55 – 5:35 · 5:35 – 6:15</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumen del día -->
+        <div class="doc-resumen-bar" id="doc-reg-resumen">
+          <div class="doc-resumen-chip">
+            <div class="doc-resumen-num" id="drr-presentes" style="color:var(--green)">0</div>
+            <div class="doc-resumen-label">Presentes</div>
+          </div>
+          <div class="doc-resumen-chip">
+            <div class="doc-resumen-num" id="drr-ausentes" style="color:var(--red)">0</div>
+            <div class="doc-resumen-label">Ausentes</div>
+          </div>
+          <div class="doc-resumen-chip">
+            <div class="doc-resumen-num" id="drr-tardanza" style="color:var(--amber)">0</div>
+            <div class="doc-resumen-label">Tardanza</div>
+          </div>
+          <div class="doc-resumen-chip">
+            <div class="doc-resumen-num" id="drr-sinmarcar" style="color:var(--text4)">0</div>
+            <div class="doc-resumen-label">Sin marcar</div>
+          </div>
+        </div>
+
+        <!-- Cards de docentes para registrar -->
+        <div id="doc-reg-lista">
+          <div class="spinner"><i class="ti ti-loader-2"></i> Cargando docentes…</div>
+        </div>
+      </div>
+
+      <!-- ── PANEL: PERSONAL ── -->
+      <div id="doc-panel-personal">
+        <div class="grid2">
+          <div class="card">
+            <div class="section-title"><i class="ti ti-users"></i>Personal docente</div>
+            <div id="doc-tabla">
+              <div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-title">
+              <i class="ti ti-calendar-check"></i>
+              Asistencia hoy — <span id="doc-fecha-hoy" style="color:var(--accent-dark);font-size:13px;margin-left:4px"></span>
+            </div>
+            <div id="doc-hoy-tabla">
+              <div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PANEL: HISTORIAL ── -->
+      <div id="doc-panel-historial" style="display:none">
+        <div class="card">
+          <div class="section-title"><i class="ti ti-history"></i>Historial de asistencia docente</div>
+          <div class="filter-bar" style="margin-bottom:14px">
+            <label style="font-size:12px;color:var(--text3);font-weight:700">Desde</label>
+            <input type="date" id="doc-desde">
+            <label style="font-size:12px;color:var(--text3);font-weight:700">Hasta</label>
+            <input type="date" id="doc-hasta">
+            <button class="btn btn-primary" onclick="cargarHistorialDocentes()">
+              <i class="ti ti-search"></i> Buscar
+            </button>
+          </div>
+          <div class="table-wrap" id="doc-hist-tabla">
+            <div class="empty"><i class="ti ti-calendar-search"></i>Selecciona un rango de fechas</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ── MATRÍCULA (solo admin) ── -->
+    <div class="page" id="page-matricula">
+
+      <!-- Inscripción -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="section-title"><i class="ti ti-user-plus"></i>Inscripción de Alumnos</div>
+
+        <div class="mat-banner" id="mat-banner">
+          <i class="ti ti-alert-circle" id="mat-banner-icon"></i>
+          <span id="mat-banner-msg"></span>
+        </div>
+
+        <!-- Año -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;font-weight:800;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Año de Estudio</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="mat-toggle-btn active" style="width:44px;height:44px" data-group="ano" data-val="1" onclick="matToggle(this,'ano')">1°</button>
+            <button class="mat-toggle-btn"        style="width:44px;height:44px" data-group="ano" data-val="2" onclick="matToggle(this,'ano')">2°</button>
+            <button class="mat-toggle-btn"        style="width:44px;height:44px" data-group="ano" data-val="3" onclick="matToggle(this,'ano')">3°</button>
+            <button class="mat-toggle-btn"        style="width:44px;height:44px" data-group="ano" data-val="4" onclick="matToggle(this,'ano')">4°</button>
+            <button class="mat-toggle-btn"        style="width:44px;height:44px" data-group="ano" data-val="5" onclick="matToggle(this,'ano')">5°</button>
+            <button class="mat-toggle-btn"        style="width:44px;height:44px" data-group="ano" data-val="6" onclick="matToggle(this,'ano')">6°</button>
+          </div>
+        </div>
+
+        <!-- Mención -->
+        <div style="margin-bottom:18px">
+          <div style="font-size:11px;font-weight:800;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Mención</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="mat-toggle-btn active" style="padding:10px 16px" data-group="mencion" data-val="Telemática"     onclick="matToggle(this,'mencion')">Telemática</button>
+            <button class="mat-toggle-btn"        style="padding:10px 16px" data-group="mencion" data-val="Turismo"        onclick="matToggle(this,'mencion')">Turismo</button>
+            <button class="mat-toggle-btn"        style="padding:10px 16px" data-group="mencion" data-val="Administración" onclick="matToggle(this,'mencion')">Administración</button>
+            <button class="mat-toggle-btn"        style="padding:10px 16px" data-group="mencion" data-val="Contabilidad"   onclick="matToggle(this,'mencion')">Contabilidad</button>
+          </div>
+        </div>
+
+        <!-- Datos estudiante -->
+        <div style="font-size:9px;font-weight:800;letter-spacing:1.8px;color:var(--text4);text-transform:uppercase;margin-bottom:10px">Datos del Estudiante</div>
+        <div class="grid2" style="gap:10px;margin-bottom:0">
+          <div>
+            <input id="m-nombre"   class="mat-input" placeholder="Nombre">
+            <div id="me-nombre"   class="mat-field-err"></div>
+          </div>
+          <div>
+            <input id="m-apellido" class="mat-input" placeholder="Apellido">
+            <div id="me-apellido" class="mat-field-err"></div>
+          </div>
+        </div>
+        <div>
+          <input id="m-cedula" class="mat-input" placeholder="Cédula (solo números)" style="max-width:300px">
+          <div id="me-cedula" class="mat-field-err"></div>
+        </div>
+
+        <!-- Datos representante -->
+        <div style="font-size:9px;font-weight:800;letter-spacing:1.8px;color:var(--text4);text-transform:uppercase;margin:14px 0 10px">Datos del Representante</div>
+        <div class="grid2" style="gap:10px;margin-bottom:0">
+          <div>
+            <input id="m-rep_nombre"   class="mat-input" placeholder="Nombre del Representante">
+            <div id="me-rep_nombre"   class="mat-field-err"></div>
+          </div>
+          <div>
+            <input id="m-rep_apellido" class="mat-input" placeholder="Apellido del Representante">
+            <div id="me-rep_apellido" class="mat-field-err"></div>
+          </div>
+        </div>
+        <div class="grid2" style="gap:10px;margin-bottom:0">
+          <div>
+            <input id="m-rep_cedula"   class="mat-input" placeholder="Cédula del Representante">
+            <div id="me-rep_cedula"   class="mat-field-err"></div>
+          </div>
+          <div>
+            <input id="m-rep_telefono" class="mat-input" placeholder="Teléfono del Representante">
+            <div id="me-rep_telefono" class="mat-field-err"></div>
+          </div>
+        </div>
+        <div>
+          <textarea id="m-direccion" class="mat-input" placeholder="Dirección de Vivienda" rows="3"></textarea>
+          <div id="me-direccion" class="mat-field-err"></div>
+        </div>
+
+        <button class="btn btn-primary" style="padding:13px 28px;font-size:14px;font-weight:800;margin-top:6px" onclick="matGuardar()">
+          <i class="ti ti-device-floppy"></i> GUARDAR ESTUDIANTE
+        </button>
+      </div>
+
+      <!-- Baja -->
+      <div class="card" style="border-color:rgba(239,68,68,.3)">
+        <div class="section-title">
+          <i class="ti ti-user-minus" style="color:var(--red)"></i>
+          <span style="color:var(--red)">Baja de Estudiante</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+          <div style="flex:1;min-width:200px">
+            <input id="m-baja-ced" class="mat-input" placeholder="Cédula a buscar" style="margin-bottom:0">
+          </div>
+          <button class="btn btn-danger" style="font-weight:800;padding:12px 20px;white-space:nowrap" onclick="matBuscar()">
+            <i class="ti ti-search"></i> BUSCAR Y ELIMINAR
+          </button>
+        </div>
+        <div id="m-baja-result" style="margin-top:14px"></div>
+      </div>
+
+    </div><!-- /#page-matricula -->
+  </div><!-- /.main -->
+</div><!-- /.layout #main-layout -->
+
+<!-- ─── MODAL PERFIL ESTUDIANTE ─── -->
+<div id="modal-estudiante" onclick="cerrarModalEst(event)">
+  <div class="modal-card" id="modal-card-inner">
+    <div class="modal-header">
+      <button class="modal-close" onclick="cerrarModalEstBtn()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-avatar-section">
+      <div class="modal-avatar" id="modal-av"></div>
+      <div class="modal-nombre" id="modal-nombre"></div>
+      <div class="modal-sub"   id="modal-sub"></div>
+      <div class="modal-pills" id="modal-pills"></div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer" style="display:none">
+      <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Asistencia acumulada</div>
+      <div class="modal-asist-row" id="modal-asist-row"></div>
+      <div class="modal-pct-bar"><div class="modal-pct-fill" id="modal-pct-fill"></div></div>
+    </div>
+    <div id="modal-edit-btn-wrap" style="display:none;padding:0 22px 22px">
+      <button onclick="abrirEditarEstudiante()" style="width:100%;padding:12px;background:var(--accent-light);color:var(--accent-dark);border:1px solid var(--accent);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" onmouseover="this.style.background='#FDE68A'" onmouseout="this.style.background='var(--accent-light)'">
+        <i class="ti ti-pencil"></i> Editar estudiante
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL EDITAR ESTUDIANTE ─── -->
+<div id="modal-editar" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(2,6,23,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;padding:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:800;color:var(--text)"><i class="ti ti-pencil" style="color:var(--accent);margin-right:8px"></i>Editar Estudiante</div>
+      <button onclick="cerrarEditarEstudiante()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text3);width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;display:block;margin-bottom:6px">NOMBRE</label>
+        <input id="edit-nombre" class="mat-input" style="margin-bottom:0" placeholder="Nombre">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;display:block;margin-bottom:6px">APELLIDO</label>
+        <input id="edit-apellido" class="mat-input" style="margin-bottom:0" placeholder="Apellido">
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;display:block;margin-bottom:6px">CÉDULA</label>
+      <input id="edit-cedula" class="mat-input" style="margin-bottom:0" placeholder="Cédula">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;display:block;margin-bottom:6px">MENCIÓN</label>
+        <select id="edit-mencion_id" class="mat-input" style="margin-bottom:0"></select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;display:block;margin-bottom:6px">AÑO</label>
+        <select id="edit-grado_id" class="mat-input" style="margin-bottom:0"></select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;display:block;margin-bottom:6px">SECCIÓN</label>
+        <input id="edit-seccion" class="mat-input" style="margin-bottom:0" placeholder="A / B / C">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;display:block;margin-bottom:6px">GÉNERO</label>
+        <select id="edit-genero_id" class="mat-input" style="margin-bottom:0">
+          <option value="">— seleccionar —</option>
+          <option value="1">Masculino</option>
+          <option value="2">Femenino</option>
+        </select>
+      </div>
+    </div>
+    <div id="edit-error" style="display:none;background:var(--red-dim);border:1px solid rgba(239,68,68,.3);color:var(--red);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="cerrarEditarEstudiante()" style="flex:1;padding:12px;background:var(--surface2);color:var(--text2);border:1px solid var(--border2);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">Cancelar</button>
+      <button onclick="guardarEdicionEstudiante()" id="btn-guardar-edit" style="flex:2;padding:12px;background:var(--accent);color:var(--accent-dark);border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"><i class="ti ti-device-floppy"></i> Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ── Fallback si Chart.js no cargó (sin internet) ── */
+if (typeof Chart === 'undefined') {
+  window.Chart = function(canvas, cfg) {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#B0CFFA';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#99C4EF';
+    ctx.font = '13px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Gráfico no disponible sin conexión', canvas.width/2, canvas.height/2 - 8);
+    ctx.fillStyle = '#5A80A8';
+    ctx.font = '11px Segoe UI, sans-serif';
+    ctx.fillText('(descarga Chart.js para uso offline)', canvas.width/2, canvas.height/2 + 12);
+    return { destroy: function(){} };
+  };
+}
+</script>
+<script>
+/* ─── CONFIG ─── */
+const API = '__API_URL__'; // ← inyectado automáticamente por el servidor Node
+const MENCIONES = ['Telemática','Turismo','Administración','Contabilidad'];
+const ANO_LABEL = {1:'1er Año',2:'2do Año',3:'3er Año',4:'4to Año',5:'5to Año'};
+
+const MENCION_COLORS = {
+  'Telemática':    { color:'#5A9FDE', dim:'rgba(90,159,222,.14)',   cls:'acc-tele'  },
+  'Turismo':       { color:'#10B981', dim:'rgba(16,185,129,.12)',   cls:'acc-tur'   },
+  'Administración':{ color:'#F59E0B', dim:'rgba(245,158,11,.12)',   cls:'acc-adm'   },
+  'Contabilidad':  { color:'#818CF8', dim:'rgba(129,140,248,.12)',  cls:'acc-cont'  },
+};
+const ANO_COLORS = ['#A8DFFE','#A7EDD8','#FDDEA0','#C9CBFA','#FAB8D8'];
+
+/* ════════════════════════════════════════════════
+   MODAL PERFIL ESTUDIANTE
+   ════════════════════════════════════════════════ */
+let _modalCache = {}; // cache de estadísticas por estudiante id
+
+function puedeVerPerfil() {
+  const rol = SESSION?.rol || 'invitado';
+  return rol !== 'invitado';
+}
+
+async function abrirModalEst(datos) {
+  /* datos puede ser objeto completo de estudiante
+     o solo {id, nombre, apellido, cedula, mencion, ano, nro_lista, ...} */
+  if (!puedeVerPerfil()) return;
+
+  const modal = document.getElementById('modal-estudiante');
+  const mc    = MENCION_COLORS[datos.mencion] || { color:'#5A9FDE', dim:'rgba(90,159,222,.14)' };
+  const ANO_COL = ANO_COLORS[(Number(datos.ano)||1)-1];
+
+  /* Avatar */
+  const av = document.getElementById('modal-av');
+  av.style.background = mc.dim;
+  av.style.color = mc.color;
+  av.style.borderColor = mc.color + '55';
+  av.textContent = (datos.nombre||'?')[0].toUpperCase();
+
+  /* Nombre y sub */
+  document.getElementById('modal-nombre').textContent = `${datos.nombre} ${datos.apellido}`;
+  document.getElementById('modal-sub').textContent = datos.usuario ? datos.usuario : `N° ${datos.nro_lista||'—'} de lista`;
+
+  /* Pills */
+  document.getElementById('modal-pills').innerHTML = `
+    <span class="pill" style="background:${mc.dim};color:${mc.color};border:1px solid ${mc.color}40">
+      <i class="ti ti-school" style="font-size:11px"></i>${datos.mencion||'—'}
+    </span>
+    <span class="pill" style="background:${ANO_COL}18;color:${ANO_COL};border:1px solid ${ANO_COL}40">
+      ${ANO_LABEL[datos.ano]||(datos.ano ? datos.ano+'° Año' : 'Sin año')}
+    </span>`;
+
+  /* Body: datos personales */
+  const cedulaFmt = datos.cedula ? `V-${datos.cedula}` : '—';
+  const repNombre = datos.rep_nombre
+    ? `${datos.rep_nombre} ${datos.rep_apellido||''}`.trim()
+    : '—';
+  const repTel = datos.rep_telefono || '—';
+  const direccion = datos.direccion || '—';
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-info-row">
+      <div class="modal-info-icon" style="color:${mc.color}"><i class="ti ti-id-badge-2"></i></div>
+      <div>
+        <div class="modal-info-label">Cédula</div>
+        <div class="modal-info-val" style="font-family:var(--mono)">${cedulaFmt}</div>
+      </div>
+    </div>
+    <div class="modal-info-row">
+      <div class="modal-info-icon" style="color:var(--indigo)"><i class="ti ti-user-circle"></i></div>
+      <div>
+        <div class="modal-info-label">Representante</div>
+        <div class="modal-info-val">${repNombre}</div>
+      </div>
+    </div>
+    <div class="modal-info-row">
+      <div class="modal-info-icon" style="color:var(--green)"><i class="ti ti-phone"></i></div>
+      <div>
+        <div class="modal-info-label">Teléfono representante</div>
+        <div class="modal-info-val" style="font-family:var(--mono)">${repTel}</div>
+      </div>
+    </div>
+    <div class="modal-info-row">
+      <div class="modal-info-icon" style="color:var(--amber)"><i class="ti ti-map-pin"></i></div>
+      <div>
+        <div class="modal-info-label">Dirección</div>
+        <div class="modal-info-val" style="font-size:13px;font-weight:600;color:var(--text2)">${direccion}</div>
+      </div>
+    </div>`;
+
+  /* Footer asistencia: intentar cargar estadísticas */
+  const footer = document.getElementById('modal-footer');
+  const asistRow = document.getElementById('modal-asist-row');
+  const pctFill  = document.getElementById('modal-pct-fill');
+  footer.style.display = 'none';
+  asistRow.innerHTML = '';
+
+  if (datos.mencion && datos.ano) {
+    const cacheKey = `${datos.mencion}-${datos.ano}`;
+    let statData = _modalCache[cacheKey];
+    if (!statData) {
+      statData = await get(`/estadisticas/${encodeURIComponent(datos.mencion)}?ano=${datos.ano}`);
+      if (statData) _modalCache[cacheKey] = statData;
+    }
+    if (statData) {
+      /* Buscar el estudiante por id o por nombre+apellido */
+      const est = statData.find(e =>
+        (datos.id && e.id === datos.id) ||
+        (e.nombre === datos.nombre && e.apellido === datos.apellido)
+      );
+      if (est) {
+        const totalClases = est.total_clases || 0;
+        const pct = totalClases > 0 ? Math.round(est.totales_p / totalClases * 100) : 0;
+        const barColor = pct < 75 ? 'var(--red)' : 'var(--green)';
+        const pctColor = pct < 75 ? 'var(--red)' : 'var(--green)';
+        footer.style.display = '';
+        asistRow.innerHTML = `
+          <div class="modal-asist-box">
+            <div class="modal-asist-num" style="color:var(--green)">${est.totales_p}</div>
+            <div class="modal-asist-label">Presentes</div>
+          </div>
+          <div class="modal-asist-box">
+            <div class="modal-asist-num" style="color:var(--red)">${est.totales_a}</div>
+            <div class="modal-asist-label">Inasist.</div>
+          </div>
+          <div class="modal-asist-box">
+            <div class="modal-asist-num" style="color:var(--amber)">${est.totales_r}</div>
+            <div class="modal-asist-label">Retirados</div>
+          </div>
+          <div class="modal-asist-box" style="border-color:${barColor}40">
+            <div class="modal-asist-num" style="color:${pctColor}">${pct}%</div>
+            <div class="modal-asist-label">Asistencia</div>
+          </div>`;
+        pctFill.style.width = '0%';
+        pctFill.style.background = barColor;
+        setTimeout(() => { pctFill.style.width = pct + '%'; }, 50);
+      }
+    }
+  }
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  /* Botón editar: solo admin */
+  const editWrap = document.getElementById('modal-edit-btn-wrap');
+  if (SESSION?.rol === 'admin') {
+    editWrap.style.display = 'block';
+    modal._datosActuales = datos;
+  } else {
+    editWrap.style.display = 'none';
+  }
+}
+
+function cerrarModalEst(e) {
+  if (e && e.target !== document.getElementById('modal-estudiante')) return;
+  _cerrarModal();
+}
+function cerrarModalEstBtn() { _cerrarModal(); }
+function _cerrarModal() {
+  document.getElementById('modal-estudiante').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') _cerrarModal(); });
+
+/* Helper: construir objeto estudiante desde los datos de una fila de historial */
+function datosDesdeHistorial(r) {
+  /* En historial, r tiene: nombre, apellido, cedula, mencion, ano, nro_lista, observaciones */
+  /* Buscar el estudiante completo en todosEstudiantes si está cargado */
+  const full = todosEstudiantes.find(e =>
+    e.nombre === r.nombre && e.apellido === r.apellido
+  );
+  return full || r;
+}
+
+/* Helper: construir nombre clickeable según rol */
+function nombreLink(obj, textoDisplay) {
+  const texto = textoDisplay || `${obj.nombre} ${obj.apellido}`;
+  if (!puedeVerPerfil()) {
+    /* Invitado: solo iniciales o nombre sin apellido completo */
+    const inicialAp = (obj.apellido||'')[0] ? (obj.apellido[0] + '.') : '';
+    return `<span class="est-link-inv" style="color:var(--text2)">${obj.nombre} ${inicialAp}</span>`;
+  }
+  const safe = encodeURIComponent(JSON.stringify(obj));
+  return `<span class="est-link" style="font-weight:700;color:var(--text)"
+    onclick='abrirModalEstDesde(${JSON.stringify(obj)})'>${texto}</span>`;
+}
+
+function abrirModalEstDesde(datos) {
+  abrirModalEst(datos);
+}
+
+/* ─── INIT ─── */
+let todosEstudiantes = [];
+let chartMenciones = null, chartEstados = null;
+
+// Date in topbar
+document.getElementById('top-date').textContent =
+  new Date().toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+document.getElementById('hist-fecha').value = new Date().toISOString().split('T')[0];
+
+/* ─── API HELPER ─── */
+async function get(path){
+  try{
+    const r = await fetch(API+path);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+/* ─── NAV ─── */
+const TITLES = {
+  resumen:'Resumen general', historial:'Historial de asistencias',
+  estudiantes:'Gestión de estudiantes', inasistencias:'Control de inasistencias',
+  estadisticas:'Estadísticas por mención', docentes:'Asistencia docente',
+  matricula:'Administrar Matrícula'
+};
+function navTo(page){
+  /* Bloquear páginas según rol */
+  const rol = SESSION?.rol || 'invitado';
+  const esAdmin    = rol === 'admin';
+  const esInvitado = rol === 'invitado';
+
+  if (page === 'matricula' && !esAdmin)  return;
+  if (page === 'docentes'  && esInvitado) return;
+
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const navEl = document.querySelector(`[data-page="${page}"]`);
+  if (navEl) navEl.classList.add('active');
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('page-title').textContent = TITLES[page]||page;
+  if(page==='resumen') cargarResumen();
+  if(page==='estudiantes'&&todosEstudiantes.length===0) cargarEstudiantes();
+  if(page==='docentes') {
+    const esAdmin = (SESSION?.rol || '') === 'admin';
+    if (esAdmin) {
+      docTab('registro');
+      cargarRegistroDocentes();
+    } else {
+      docTab('personal'); // docTab ya llama cargarDocentes internamente
+    }
+  }
+  if(page==='estadisticas') cargarEstadisticas();
+}
+document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>navTo(n.dataset.page)));
+
+/* ─── PILL ─── */
+function pill(estado){
+  const map={
+    'Asistido':'pill-green','Presente':'pill-green',
+    'Inasistente':'pill-red','Ausente':'pill-red',
+    'Retirado':'pill-amber','Tardanza':'pill-amber',
+  };
+  const icons={
+    'Asistido':'ti-circle-check','Presente':'ti-circle-check',
+    'Inasistente':'ti-circle-x','Ausente':'ti-circle-x',
+    'Retirado':'ti-circle-minus','Tardanza':'ti-clock',
+  };
+  const cls = map[estado]||'pill-gray';
+  const ico = icons[estado]||'ti-circle';
+  return `<span class="pill ${cls}"><i class="ti ${ico}" style="font-size:12px"></i>${estado}</span>`;
+}
+
+/* ─── RESUMEN ─── */
+async function cargarResumen(){
+  const el = document.getElementById('resumen-content');
+  const rol = SESSION?.rol || 'invitado';
+  const esAdmin    = rol === 'admin';
+  const esInvitado = rol === 'invitado';
+
+  const promesas = [get('/estudiantes')];
+  if (esAdmin) promesas.push(get('/admin/docentes'), get('/asistencia-docentes/hoy'));
+  else         promesas.push(Promise.resolve(null), Promise.resolve(null));
+
+  const [estudiantes, docentesData, asisHoy] = await Promise.all(promesas);
+
+  if(!estudiantes){
+    el.innerHTML=`<div class="warn-box"><i class="ti ti-wifi-off"></i>
+      No se pudo conectar con la API en <strong>${API}</strong>. Verifica que el servidor esté activo.</div>`;
+    return;
+  }
+
+  /* Filtrar estudiantes según rol */
+  const mpStr = String(SESSION?.menciones_permitidas ?? '').trim();
+  const tieneMenciones = mpStr !== '' && mpStr !== 'null' && mpStr !== 'undefined';
+  const ANOS_POR_ROL = {
+    admin:'12345', docente_manana:'123', docente_tarde:'45', invitado:'12345',
+  };
+  const anosStr = ANOS_POR_ROL[rol] || '12345';
+  const anosBase = anosStr.split('').map(String);
+
+  let anosPermitidos = anosBase;
+  let mencionesPermitidas = MENCIONES;
+  if (tieneMenciones) {
+    const anosEnM = [...new Set(mpStr.split(',').map(p=>p.trim().split(':')[1]).filter(Boolean))];
+    anosPermitidos = anosBase.filter(a=>anosEnM.includes(a));
+    const mm = [...new Set(mpStr.split(',').map(p=>p.trim().split(':')[0]).filter(Boolean))].filter(m=>MENCIONES.includes(m));
+    if (mm.length) mencionesPermitidas = mm;
+  }
+
+  const estudiantesFiltrados = estudiantes.filter(e =>
+    anosPermitidos.includes(String(e.ano)) &&
+    mencionesPermitidas.includes(e.mencion)
+  );
+
+  const totalEst    = estudiantesFiltrados.length;
+  const totalDoc    = docentesData ? docentesData.length : 0;
+  const docPresentes= asisHoy ? asisHoy.filter(a=>a.estado==='Presente').length : 0;
+  const docAusentes = asisHoy ? asisHoy.filter(a=>a.estado==='Ausente').length : 0;
+
+  const por_mencion = {};
+  MENCIONES.forEach(m=>{ por_mencion[m]=0; });
+  estudiantesFiltrados.forEach(e=>{ if(por_mencion[e.mencion]!==undefined) por_mencion[e.mencion]++; });
+
+  const por_ano = {};
+  for(let i=1;i<=5;i++) por_ano[i]=0;
+  estudiantesFiltrados.forEach(e=>{ const a=Number(e.ano); if(a>=1&&a<=5) por_ano[a]++; });
+
+  /* Banner de contexto para docentes */
+  const turnoLabel = rol==='docente_manana' ? 'Turno Mañana · 1°, 2° y 3° Año'
+                   : rol==='docente_tarde'   ? 'Turno Tarde · 4° y 5° Año' : null;
+  const bannerCtx = turnoLabel ? `
+    <div class="rol-banner rol-banner-info" style="margin-bottom:20px">
+      <i class="ti ti-sun"></i>
+      Viendo datos de tu turno: <strong>${turnoLabel}</strong>
+      ${tieneMenciones ? `· Menciones: <strong>${mencionesPermitidas.join(', ')}</strong>` : ''}
+    </div>` : '';
+
+  /* Métricas de docentes — solo admin */
+  const metricasDocentes = esAdmin ? `
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--green-dim);color:var(--green)"><i class="ti ti-id-badge-2"></i></div>
+        <div class="metric-label">Docentes</div>
+        <div class="metric-val">${totalDoc}</div>
+        <div class="metric-sub">${docPresentes} presentes hoy</div>
+      </div>
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--red-dim);color:var(--red)"><i class="ti ti-user-x"></i></div>
+        <div class="metric-label">Ausentes Hoy</div>
+        <div class="metric-val" style="color:var(--red)">${docAusentes}</div>
+        <div class="metric-sub">docentes sin asistir</div>
+      </div>` : '';
+
+  el.innerHTML=`
+    ${bannerCtx}
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--amber-dim);color:var(--accent-dark)"><i class="ti ti-users"></i></div>
+        <div class="metric-label">Total Estudiantes</div>
+        <div class="metric-val">${totalEst}</div>
+        <div class="metric-sub">${turnoLabel ? 'en tu turno' : 'matriculados actualmente'}</div>
+      </div>
+      ${metricasDocentes}
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--indigo-dim);color:var(--indigo)"><i class="ti ti-building-school"></i></div>
+        <div class="metric-label">Menciones</div>
+        <div class="metric-val">${mencionesPermitidas.length}</div>
+        <div class="metric-sub">${mencionesPermitidas.length < MENCIONES.length ? 'asignadas a tu cuenta' : 'especialidades activas'}</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="section-title"><i class="ti ti-chart-donut"></i>Estudiantes por Mención</div>
+        <div class="chart-wrap"><canvas id="chart-menciones"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title"><i class="ti ti-chart-bar"></i>Estudiantes por Año</div>
+        <div class="chart-wrap"><canvas id="chart-anos"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title"><i class="ti ti-table"></i>Distribución por Mención y Año</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Mención</th>
+            ${anosPermitidos.map(a=>`<th>${ANO_LABEL[a]}</th>`).join('')}
+            <th>Total</th>
+          </tr></thead>
+          <tbody>
+            ${mencionesPermitidas.map(m=>{
+              const mc = MENCION_COLORS[m];
+              const filaAnos = anosPermitidos.map(a=>{
+                const c = estudiantesFiltrados.filter(e=>e.mencion===m&&e.ano==a).length;
+                return `<td style="font-weight:700">${c||'—'}</td>`;
+              });
+              const tot = estudiantesFiltrados.filter(e=>e.mencion===m).length;
+              return `<tr>
+                <td>
+                  <span style="display:inline-flex;align-items:center;gap:8px">
+                    <span style="width:10px;height:10px;border-radius:3px;background:${mc.color};flex-shrink:0;display:inline-block"></span>
+                    <strong>${m}</strong>
+                  </span>
+                </td>
+                ${filaAnos.join('')}
+                <td><span class="pill" style="background:${mc.dim};color:${mc.color};border:1px solid ${mc.color}40">${tot}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  const chartDefaults = {
+    plugins: { legend: { labels: { color:'#2B5280', font:{ family:'Inter', size:12 }, boxWidth:14 } } }
+  };
+
+  if(chartMenciones) chartMenciones.destroy();
+  chartMenciones = new Chart(document.getElementById('chart-menciones'),{
+    type:'doughnut',
+    data:{
+      labels: mencionesPermitidas,
+      datasets:[{ data: mencionesPermitidas.map(m=>por_mencion[m]),
+        backgroundColor: mencionesPermitidas.map(m=>MENCION_COLORS[m].color),
+        borderColor: '#E4EFFF', borderWidth: 2, hoverBorderWidth: 3 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{ position:'bottom', labels:{ color:'#2B5280', font:{family:'Inter',size:12}, boxWidth:14, padding:16 } } }
+    }
+  });
+
+  if(chartEstados) chartEstados.destroy();
+  chartEstados = new Chart(document.getElementById('chart-anos'),{
+    type:'bar',
+    data:{
+      labels: anosPermitidos.map(a=>ANO_LABEL[a]),
+      datasets:[{
+        label:'Estudiantes',
+        data: anosPermitidos.map(a=>por_ano[a]),
+        backgroundColor: anosPermitidos.map(a=>ANO_COLORS[Number(a)-1]),
+        borderRadius:8, borderSkipped:false,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        y:{ beginAtZero:true, ticks:{ precision:0, color:'#5A80A8', font:{family:'Inter'} }, grid:{ color:'#C8DFFF' } },
+        x:{ ticks:{ color:'#5A80A8', font:{family:'Inter'} }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
+/* ─── HISTORIAL ─── */
+/* cache para exportaciones */
+let _historialData = [];
+let _inasistenciasData = [];
+let _estadisticasData = { mencion: '', data: [] };
+
+function puedeExportar() {
+  const rol = SESSION?.rol || 'invitado';
+  return rol === 'admin' || rol === 'docente_manana' || rol === 'docente_tarde';
+}
+
+async function cargarHistorial(){
+  const fecha   = document.getElementById('hist-fecha').value;
+  const mencion = document.getElementById('hist-mencion').value;
+  const ano     = document.getElementById('hist-ano').value;
+  const el      = document.getElementById('hist-tabla');
+  const btnExp  = document.getElementById('btn-export-historial');
+  if(!fecha){ el.innerHTML='<div class="empty"><i class="ti ti-calendar"></i>Selecciona una fecha</div>'; if(btnExp) btnExp.style.display='none'; return; }
+  el.innerHTML='<div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>';
+  let url=`/historial?fecha=${fecha}`;
+  if(mencion) url+=`&mencion=${encodeURIComponent(mencion)}`;
+  if(ano)     url+=`&ano=${ano}`;
+  const data = await get(url);
+  _historialData = data || [];
+  if(btnExp) btnExp.style.display = (data && data.length > 0 && puedeExportar()) ? '' : 'none';
+  if(!data||data.length===0){ el.innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i>No hay registros para esta fecha</div>'; return; }
+  el.innerHTML=`<table>
+    <thead><tr><th>#</th><th>Estudiante</th><th>Mención</th><th>Año</th><th>Estado</th><th>Materia</th><th>Observaciones</th></tr></thead>
+    <tbody>${data.map((r,i)=>`<tr>
+      <td style="color:var(--text4);font-family:var(--mono)">${r.nro_lista||i+1}</td>
+      <td><div class="flex-row">
+        <div class="avatar">${(r.nombre||'?')[0].toUpperCase()}</div>
+        ${nombreLink(r)}
+      </div></td>
+      <td><span style="font-size:12px;font-weight:700;color:${MENCION_COLORS[r.mencion]?.color||'#5A80A8'}">${r.mencion}</span></td>
+      <td style="font-weight:600">${ANO_LABEL[Number(r.ano)]||(r.ano ? r.ano : '—')}</td>
+      <td>${pill(r.estado)}</td>
+      <td style="color:var(--text3);font-size:13px">${r.materia||'General'}</td>
+      <td style="color:var(--text3);font-size:12px">${r.observaciones||'—'}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function exportarHistorialExcel() {
+  if (!_historialData || _historialData.length === 0) return;
+  const fecha   = document.getElementById('hist-fecha').value || '';
+  const mencion = document.getElementById('hist-mencion').value || 'Todas';
+  const ano     = document.getElementById('hist-ano').value;
+  const anoLabel = ano ? (ANO_LABEL[Number(ano)] || `${ano}° Año`) : 'Todos los años';
+  const hoy = new Date().toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+  const encabezado = [
+    ['Institución:', 'E.T. J.R.G.S'],
+    ['Mención:', mencion],
+    ['Año:', anoLabel],
+    ['Fecha consultada:', fecha],
+    ['Exportado:', hoy],
+    [],
+    ['#', 'Nombre', 'Apellido', 'Mención', 'Año', 'Estado', 'Materia', 'Observaciones'],
+  ];
+
+  const filas = _historialData.map((r, i) => [
+    r.nro_lista || i + 1,
+    r.nombre || '',
+    r.apellido || '',
+    r.mencion || '',
+    ANO_LABEL[Number(r.ano)] || (r.ano || '—'),
+    r.estado || '',
+    r.materia || 'General',
+    r.observaciones || '',
+  ]);
+
+  const presentes  = _historialData.filter(r => r.estado === 'Asistido').length;
+  const ausentes   = _historialData.filter(r => r.estado === 'Inasistente').length;
+  const retirados  = _historialData.filter(r => r.estado === 'Retirado').length;
+  const resumen = [
+    [],
+    ['', 'RESUMEN'],
+    ['', 'Presentes:', presentes],
+    ['', 'Inasistentes:', ausentes],
+    ['', 'Retirados:', retirados],
+    ['', 'Total registros:', _historialData.length],
+  ];
+
+  const datos = [...encabezado, ...filas, ...resumen];
+  const ws = XLSX.utils.aoa_to_sheet(datos);
+  ws['!cols'] = [{ wch:5 },{ wch:20 },{ wch:20 },{ wch:16 },{ wch:12 },{ wch:14 },{ wch:20 },{ wch:30 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Historial');
+  XLSX.writeFile(wb, `historial_${fecha}_${mencion.replace(/\s/g,'_')}.xlsx`);
+}
+
+/* ─── ESTUDIANTES ─── */
+async function cargarEstudiantes(){
+  const data = await get('/estudiantes');
+  todosEstudiantes = data||[];
+  renderEstudiantes(todosEstudiantes);
+}
+function filtrarEstudiantes(){
+  const q = document.getElementById('est-buscar').value.toLowerCase();
+  const m = document.getElementById('est-mencion').value;
+  const a = document.getElementById('est-ano').value;
+  const filtered = todosEstudiantes.filter(e=>{
+    const matchQ=!q||(e.nombre+' '+e.apellido+' '+e.cedula).toLowerCase().includes(q);
+    const matchM=!m||e.mencion===m;
+    const matchA=!a||String(e.ano)===a;
+    return matchQ&&matchM&&matchA;
+  });
+  renderEstudiantes(filtered);
+}
+function renderEstudiantes(lista){
+  const el = document.getElementById('est-tabla');
+  const esInvitado = (SESSION?.rol || 'invitado') === 'invitado';
+  if(!lista||lista.length===0){
+    el.innerHTML='<div class="empty"><i class="ti ti-users-group"></i>No hay estudiantes que coincidan</div>'; return;
+  }
+  el.innerHTML=`
+    <div style="margin-bottom:12px;font-size:12px;font-weight:700;color:var(--text3)">
+      <i class="ti ti-filter" style="margin-right:5px"></i>${lista.length} estudiante${lista.length!==1?'s':''} encontrado${lista.length!==1?'s':''}
+    </div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Nombre</th>
+        ${esInvitado ? '' : '<th>Cédula</th>'}
+        <th>Mención</th><th>Año</th>
+        ${esInvitado ? '' : '<th>Representante</th><th>Teléfono</th>'}
+      </tr></thead>
+      <tbody>${lista.map(e=>{
+        const mc = MENCION_COLORS[e.mencion];
+        return `<tr>
+          <td style="color:var(--text4);font-family:var(--mono)">${e.nro_lista||'—'}</td>
+          <td><div class="flex-row">
+            <div class="avatar">${(e.nombre||'?')[0].toUpperCase()}</div>
+            ${nombreLink(e)}
+          </div></td>
+          ${esInvitado ? '' : `<td style="font-family:var(--mono);font-size:13px;color:var(--text3)">${e.cedula||'—'}</td>`}
+          <td>
+            <span style="font-size:12px;font-weight:800;color:${mc?.color||'#5A80A8'}">${e.mencion||'—'}</span>
+          </td>
+          <td>
+            <span class="pill" style="background:${ANO_COLORS[(Number(e.ano)||1)-1]}22;color:${ANO_COLORS[(Number(e.ano)||1)-1]};border:1px solid ${ANO_COLORS[(Number(e.ano)||1)-1]}40">
+              ${ANO_LABEL[Number(e.ano)]||(e.ano ? e.ano : '—')}
+            </span>
+          </td>
+          ${esInvitado ? '' : `
+          <td style="font-size:13px;color:var(--text3)">${e.rep_nombre?e.rep_nombre+' '+(e.rep_apellido||''):'—'}</td>
+          <td style="font-size:13px;color:var(--text3);font-family:var(--mono)">${e.rep_telefono||'—'}</td>`}
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>`;
+}
+document.getElementById('est-buscar').addEventListener('keyup',filtrarEstudiantes);
+
+/* ─── INASISTENCIAS ─── */
+async function cargarInasistencias(){
+  const mencion = document.getElementById('ina-mencion').value;
+  const ano     = document.getElementById('ina-ano').value;
+  const el      = document.getElementById('ina-tabla');
+  const btnExp  = document.getElementById('btn-export-inasistencias');
+  el.innerHTML='<div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>';
+  let url='/inasistencias-acumuladas';
+  const params=[];
+  if(mencion) params.push(`mencion=${encodeURIComponent(mencion)}`);
+  if(ano)     params.push(`ano=${ano}`);
+  if(params.length) url+='?'+params.join('&');
+  const data = await get(url);
+  _inasistenciasData = data || [];
+  if(btnExp) btnExp.style.display = (data && data.length > 0 && puedeExportar()) ? '' : 'none';
+  if(!data||data.length===0){ el.innerHTML='<div class="empty"><i class="ti ti-check"></i>No hay inasistencias registradas</div>'; return; }
+  el.innerHTML=`<table>
+    <thead><tr><th>#</th><th>Estudiante</th><th>Mención</th><th>Año</th><th>Inasist.</th><th>Retirados</th><th>Total</th></tr></thead>
+    <tbody>${data.map(e=>{
+      const total=e.totalInasistencias+e.totalRetirados;
+      const pct=Math.min(100,total*5);
+      const barColor=pct>50?'var(--red)':'var(--amber)';
+      return `<tr>
+        <td style="color:var(--text4);font-family:var(--mono)">${e.nro_lista||'—'}</td>
+        <td style="font-weight:700">${nombreLink(e)}</td>
+        <td><span style="font-size:12px;font-weight:800;color:${MENCION_COLORS[e.mencion]?.color||'#5A80A8'}">${e.mencion}</span></td>
+        <td style="font-weight:600">${ANO_LABEL[Number(e.ano)]||(e.ano ? e.ano : '—')}</td>
+        <td><span style="color:var(--red);font-weight:800;font-size:16px">${e.totalInasistencias}</span></td>
+        <td><span style="color:var(--amber);font-weight:800;font-size:16px">${e.totalRetirados}</span></td>
+        <td>
+          <span style="font-weight:900;font-size:16px">${total}</span>
+          <div class="progress-bg"><div class="progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+function exportarInasistenciasExcel() {
+  if (!_inasistenciasData || _inasistenciasData.length === 0) return;
+  const mencion = document.getElementById('ina-mencion').value || 'Todas';
+  const ano     = document.getElementById('ina-ano').value;
+  const anoLabel = ano ? (ANO_LABEL[Number(ano)] || `${ano}° Año`) : 'Todos los años';
+  const hoy = new Date().toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+  const encabezado = [
+    ['Institución:', 'E.T. J.R.G.S'],
+    ['Mención:', mencion],
+    ['Año:', anoLabel],
+    ['Exportado:', hoy],
+    [],
+    ['#', 'Nombre', 'Apellido', 'Cédula', 'Mención', 'Año', 'Inasistencias', 'Retirados', 'Total'],
+  ];
+
+  const filas = _inasistenciasData.map(e => {
+    const total = e.totalInasistencias + e.totalRetirados;
+    return [
+      e.nro_lista || '—',
+      e.nombre || '',
+      e.apellido || '',
+      e.cedula || '',
+      e.mencion || '',
+      ANO_LABEL[Number(e.ano)] || (e.ano || '—'),
+      e.totalInasistencias,
+      e.totalRetirados,
+      total,
+    ];
+  });
+
+  const totalInas = _inasistenciasData.reduce((s,e) => s + e.totalInasistencias, 0);
+  const totalRet  = _inasistenciasData.reduce((s,e) => s + e.totalRetirados, 0);
+  const resumen = [
+    [],
+    ['', 'RESUMEN'],
+    ['', 'Total Inasistencias:', totalInas],
+    ['', 'Total Retirados:', totalRet],
+    ['', 'Total acumulado:', totalInas + totalRet],
+    ['', 'Estudiantes con ausencias:', _inasistenciasData.length],
+  ];
+
+  const datos = [...encabezado, ...filas, ...resumen];
+  const ws = XLSX.utils.aoa_to_sheet(datos);
+  ws['!cols'] = [{ wch:5 },{ wch:20 },{ wch:20 },{ wch:14 },{ wch:16 },{ wch:12 },{ wch:14 },{ wch:12 },{ wch:10 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Inasistencias');
+  XLSX.writeFile(wb, `inasistencias_${mencion.replace(/\s/g,'_')}_${anoLabel.replace(/\s/g,'_')}.xlsx`);
+}
+
+/* ─── ESTADÍSTICAS ─── */
+async function cargarEstadisticas(){
+  const mencion = document.getElementById('stat-mencion').value;
+  const el      = document.getElementById('stat-content');
+  const btnExp  = document.getElementById('btn-export-estadisticas');
+  el.innerHTML='<div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>';
+  const data = await get(`/estadisticas/${encodeURIComponent(mencion)}`);
+  _estadisticasData = { mencion, data: data || [] };
+  if(btnExp) btnExp.style.display = (data && data.length > 0 && puedeExportar()) ? '' : 'none';
+  if(!data||data.length===0){ el.innerHTML='<div class="empty"><i class="ti ti-chart-off"></i>No hay datos para esta mención</div>'; return; }
+  const totalClases = data[0]?.total_clases||0;
+  const pctProm = totalClases>0 ? Math.round(data.reduce((s,e)=>s+(e.totales_p/totalClases*100),0)/data.length) : 0;
+  const mc = MENCION_COLORS[mencion]||{color:'#5A9FDE',dim:'rgba(90,159,222,.14)'};
+
+  el.innerHTML=`
+    <div class="metric-grid" style="margin-bottom:20px">
+      <div class="metric">
+        <div class="metric-icon" style="background:${mc.dim};color:${mc.color}"><i class="ti ti-users"></i></div>
+        <div class="metric-label">Estudiantes</div>
+        <div class="metric-val">${data.length}</div>
+        <div class="metric-sub">en esta mención</div>
+      </div>
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--sky-dim);color:var(--sky)"><i class="ti ti-book"></i></div>
+        <div class="metric-label">Clases Dictadas</div>
+        <div class="metric-val">${totalClases}</div>
+        <div class="metric-sub">hasta la fecha</div>
+      </div>
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--green-dim);color:var(--green)"><i class="ti ti-trending-up"></i></div>
+        <div class="metric-label">Asistencia Promedio</div>
+        <div class="metric-val" style="color:${pctProm<75?'var(--red)':'var(--green)'}">${pctProm}%</div>
+        <div class="metric-sub">del grupo</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title"><i class="ti ti-list-details"></i>Rendimiento individual</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Estudiante</th><th>Presentes</th><th>Inasistentes</th><th>Retirados</th><th>% Asistencia</th></tr></thead>
+          <tbody>${data.map(e=>{
+            const pct=totalClases>0?Math.round(e.totales_p/totalClases*100):0;
+            const barColor=pct<75?'var(--red)':'var(--sky)';
+            return `<tr>
+              <td style="color:var(--text4);font-family:var(--mono)">${e.nro_lista||'—'}</td>
+              <td style="font-weight:700">${nombreLink({...e, mencion}, `${e.nombre} ${e.apellido}`)}</td>
+              <td><span style="color:var(--green);font-weight:800;font-size:16px">${e.totales_p}</span></td>
+              <td><span style="color:var(--red);font-weight:800;font-size:16px">${e.totales_a}</span></td>
+              <td><span style="color:var(--amber);font-weight:800;font-size:16px">${e.totales_r}</span></td>
+              <td style="min-width:130px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-weight:900;font-size:16px;color:${pct<75?'var(--red)':'var(--green)'};min-width:40px">${pct}%</span>
+                  <div class="progress-bg" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function exportarEstadisticasExcel() {
+  const { mencion, data } = _estadisticasData;
+  if (!data || data.length === 0) return;
+  const hoy = new Date().toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const totalClases = data[0]?.total_clases || 0;
+
+  const encabezado = [
+    ['Institución:', 'E.T. J.R.G.S'],
+    ['Mención:', mencion],
+    ['Total de clases dictadas:', totalClases],
+    ['Exportado:', hoy],
+    [],
+    ['#', 'Nombre', 'Apellido', 'Cédula', 'Año', 'Presentes', 'Inasistentes', 'Retirados', '% Asistencia'],
+  ];
+
+  const filas = data.map((e, i) => {
+    const pct = totalClases > 0 ? Math.round((e.totales_p / totalClases) * 100) : 0;
+    return [
+      e.nro_lista || i + 1,
+      e.nombre || '',
+      e.apellido || '',
+      e.cedula || '',
+      ANO_LABEL[Number(e.ano)] || (e.ano || '—'),
+      e.totales_p || 0,
+      e.totales_i || 0,
+      e.totales_r || 0,
+      pct + '%',
+    ];
+  });
+
+  const pctProm = totalClases > 0
+    ? Math.round(data.reduce((s, e) => s + (e.totales_p / totalClases * 100), 0) / data.length)
+    : 0;
+  const resumen = [
+    [],
+    ['', 'RESUMEN'],
+    ['', 'Estudiantes:', data.length],
+    ['', 'Clases dictadas:', totalClases],
+    ['', '% Asistencia promedio:', pctProm + '%'],
+  ];
+
+  const datos = [...encabezado, ...filas, ...resumen];
+  const ws = XLSX.utils.aoa_to_sheet(datos);
+  ws['!cols'] = [{ wch:5 },{ wch:20 },{ wch:20 },{ wch:14 },{ wch:12 },{ wch:12 },{ wch:14 },{ wch:12 },{ wch:14 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Estadísticas');
+  XLSX.writeFile(wb, `estadisticas_${mencion.replace(/\s/g,'_')}.xlsx`);
+}
+
+/* ─── DOCENTES ─── */
+async function cargarDocentes(){
+  const hoy = new Date();
+  document.getElementById('doc-fecha-hoy').textContent =
+    hoy.toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'});
+  const [docList, hoyData] = await Promise.all([
+    get('/admin/docentes'), get('/asistencia-docentes/hoy')
+  ]);
+
+  const docEl = document.getElementById('doc-tabla');
+  if(!docList||docList.length===0){ docEl.innerHTML='<div class="empty"><i class="ti ti-users"></i>Sin datos</div>'; }
+  else{
+    docEl.innerHTML=`<table>
+      <thead><tr><th>Docente</th><th>Materia</th><th>Rol</th></tr></thead>
+      <tbody>${docList.map(d=>`<tr>
+        <td><div class="flex-row">
+          <div class="avatar">${(d.nombre||'?')[0].toUpperCase()}</div>
+          <span style="font-weight:700">${d.nombre} ${d.apellido||''}</span>
+        </div></td>
+        <td style="font-size:13px;color:var(--text3)">${d.materia||'—'}</td>
+        <td><span class="pill ${d.rol==='admin'?'pill-sky':'pill-gray'}">${d.rol}</span></td>
+      </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  const hoyEl = document.getElementById('doc-hoy-tabla');
+  if(!hoyData||hoyData.length===0){ hoyEl.innerHTML='<div class="empty"><i class="ti ti-calendar-x"></i>No hay registros para hoy</div>'; }
+  else{
+    const mapaDoc = {};
+    if(docList) docList.forEach(d=>{ mapaDoc[d.id]=d; });
+    hoyEl.innerHTML=`<table>
+      <thead><tr><th>Docente</th><th>Estado</th><th>Bloque</th><th>Observaciones</th></tr></thead>
+      <tbody>${hoyData.map(a=>{
+        const d=mapaDoc[a.docente_id]||{};
+        const bloqueLabel = a.bloque_clase ? (BLOQUES_DOC.find(b=>b.id===a.bloque_clase)?.label || 'Clase '+a.bloque_clase) : '—';
+        return `<tr>
+          <td style="font-weight:700">${d.nombre||'ID '+a.docente_id} ${d.apellido||''}</td>
+          <td>${pill(a.estado)}</td>
+          <td style="font-size:13px;color:var(--text3)">${bloqueLabel}</td>
+          <td style="font-size:12px;color:var(--text3)">${a.observaciones||'—'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+  }
+}
+
+async function cargarHistorialDocentes(){
+  const desde = document.getElementById('doc-desde').value;
+  const hasta = document.getElementById('doc-hasta').value;
+  const el    = document.getElementById('doc-hist-tabla');
+  el.innerHTML='<div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>';
+  let url='/asistencia-docentes/historial';
+  const p=[];
+  if(desde) p.push(`desde=${desde}`);
+  if(hasta) p.push(`hasta=${hasta}`);
+  if(p.length) url+='?'+p.join('&');
+  const data = await get(url);
+  if(!data||data.length===0){ el.innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i>No hay registros</div>'; return; }
+  el.innerHTML=`<table>
+    <thead><tr><th>Fecha</th><th>Docente</th><th>Materia</th><th>Estado</th><th>Observaciones</th></tr></thead>
+    <tbody>${data.map(r=>`<tr>
+      <td style="font-family:var(--mono);font-size:13px;color:var(--text3)">${r.fecha}</td>
+      <td style="font-weight:700">${r.nombre} ${r.apellido}</td>
+      <td style="font-size:13px;color:var(--text3)">${r.materia||'—'}</td>
+      <td>${pill(r.estado)}</td>
+      <td style="font-size:12px;color:var(--text3)">${r.observaciones||'—'}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+/* ─── DOCENTES: TABS ─── */
+const BLOQUES_DOC = [
+  { id:1, label:'1ra Clase', horas:'12:45 – 2:05'  },
+  { id:2, label:'2da Clase', horas:'2:05 – 3:25'   },
+  { id:3, label:'3ra Clase', horas:'3:35 – 4:55'   },
+  { id:4, label:'4ta Clase', horas:'4:55 – 6:15'   },
+];
+
+/* Estado de registros en memoria: { [docente_id]: { estado, bloque_clase, observaciones } } */
+let _docRegistros = {};
+let _docList = [];
+
+function docTab(tab) {
+  /* Mostrar/ocultar paneles */
+  document.getElementById('doc-panel-registro').style.display  = tab==='registro'  ? '' : 'none';
+  document.getElementById('doc-panel-personal').style.display  = tab==='personal'  ? '' : 'none';
+  document.getElementById('doc-panel-historial').style.display = tab==='historial' ? '' : 'none';
+
+  /* Resaltar botón activo */
+  ['registro','personal','historial'].forEach(t => {
+    const btn = document.getElementById('doc-tab-'+t);
+    if (!btn) return;
+    if (t === tab) { btn.classList.add('btn-primary'); btn.classList.remove('btn'); }
+    else           { btn.classList.remove('btn-primary'); btn.classList.add('btn'); }
+  });
+
+  /* Cargar datos del panel si aún no se cargaron */
+  if (tab === 'registro' && document.getElementById('doc-reg-lista').children.length === 0) {
+    cargarRegistroDocentes();
+  }
+  if (tab === 'personal') {
+    /* Recargar siempre al entrar a Personal para tener datos frescos */
+    cargarDocentes();
+  }
+}
+
+function _docActualizarResumen() {
+  const vals = Object.values(_docRegistros);
+  document.getElementById('drr-presentes').textContent = vals.filter(r=>r.estado==='Presente').length;
+  document.getElementById('drr-ausentes').textContent  = vals.filter(r=>r.estado==='Ausente').length;
+  document.getElementById('drr-tardanza').textContent  = vals.filter(r=>r.estado==='Tardanza').length;
+  document.getElementById('drr-sinmarcar').textContent = _docList.length - vals.filter(r=>r.estado).length;
+}
+
+function _docSetEstado(docenteId, estado) {
+  if (!_docRegistros[docenteId]) _docRegistros[docenteId] = { estado:null, bloque_clase:null, observaciones:'' };
+  _docRegistros[docenteId].estado = estado;
+
+  /* Actualizar estilos de la card */
+  const card = document.getElementById('drcard-'+docenteId);
+  if (card) {
+    card.className = 'doc-reg-card' + (estado ? ' estado-'+estado : '');
+  }
+  /* Actualizar botones estado */
+  ['Presente','Ausente','Tardanza'].forEach(e => {
+    const btn = document.getElementById('drbtn-'+docenteId+'-'+e);
+    if (btn) btn.className = 'doc-reg-btn' + (e===estado ? ' active-'+e : '');
+  });
+  _docActualizarResumen();
+}
+
+function _docSetBloque(docenteId, bloqueId) {
+  if (!_docRegistros[docenteId]) _docRegistros[docenteId] = { estado:null, bloque_clase:null, observaciones:'' };
+  const actual = _docRegistros[docenteId].bloque_clase;
+  const nuevo  = actual === bloqueId ? null : bloqueId;
+  _docRegistros[docenteId].bloque_clase = nuevo;
+
+  BLOQUES_DOC.forEach(b => {
+    const btn = document.getElementById('drbloque-'+docenteId+'-'+b.id);
+    if (btn) btn.className = 'bloque-btn' + (b.id===nuevo ? ' active' : '');
+  });
+}
+
+function _docSetObs(docenteId, texto) {
+  if (!_docRegistros[docenteId]) _docRegistros[docenteId] = { estado:null, bloque_clase:null, observaciones:'' };
+  _docRegistros[docenteId].observaciones = texto;
+}
+
+async function _docGuardar(docenteId) {
+  const reg = _docRegistros[docenteId];
+  if (!reg?.estado) { mostrarToast('Selecciona el estado del docente primero', 'red'); return; }
+
+  const btn = document.getElementById('drsave-'+docenteId);
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Guardando…';
+
+  try {
+    const res = await fetch(API + '/asistencia-docentes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        docente_id:    docenteId,
+        estado:        reg.estado,
+        bloque_clase:  reg.bloque_clase ?? null,
+        observaciones: reg.observaciones || null,
+      })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    mostrarToast('Asistencia guardada ✓', 'green');
+    /* Actualizar también el panel "Personal" si está cargado */
+    if (document.getElementById('doc-panel-personal').style.display !== 'none') {
+      cargarDocentes();
+    }
+  } catch(e) {
+    mostrarToast('Error al guardar: ' + e.message, 'red');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar';
+  }
+}
+
+async function cargarRegistroDocentes() {
+  const el = document.getElementById('doc-reg-lista');
+  el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Cargando docentes…</div>';
+
+  const [docList, hoyData] = await Promise.all([
+    get('/admin/docentes'), get('/asistencia-docentes/hoy')
+  ]);
+
+  if (!docList || docList.length === 0) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-users"></i>No hay docentes registrados</div>';
+    return;
+  }
+
+  _docList = docList;
+
+  /* Precargar registros de hoy si ya existen */
+  _docRegistros = {};
+  if (hoyData) {
+    hoyData.forEach(r => {
+      _docRegistros[r.docente_id] = {
+        estado:        r.estado,
+        bloque_clase:  r.bloque_clase ?? null,
+        observaciones: r.observaciones || '',
+      };
+    });
+  }
+
+  /* Renderizar cards */
+  el.innerHTML = docList.map(d => {
+    const reg    = _docRegistros[d.id] || {};
+    const estado = reg.estado || null;
+    const bloque = reg.bloque_clase || null;
+
+    return `
+    <div class="doc-reg-card${estado ? ' estado-'+estado : ''}" id="drcard-${d.id}">
+      <div class="doc-reg-top">
+        <div class="doc-reg-avatar">${(d.nombre||'?')[0].toUpperCase()}${(d.apellido||'')[0]?.toUpperCase()||''}</div>
+        <div style="flex:1">
+          <div class="doc-reg-nombre">${d.nombre} ${d.apellido||''}</div>
+          <div class="doc-reg-materia">${d.materia||'Sin materia asignada'} · <span class="pill ${d.rol==='admin'?'pill-sky':'pill-gray'}" style="font-size:10px;padding:2px 8px">${d.rol}</span></div>
+        </div>
+        ${estado ? `<span class="pill ${estado==='Presente'?'pill-green':estado==='Ausente'?'pill-red':'pill-amber'}">${estado}</span>` : ''}
+      </div>
+
+      <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px">Estado de asistencia</div>
+      <div class="doc-reg-btns">
+        ${['Presente','Ausente','Tardanza'].map(e => `
+          <button class="doc-reg-btn${e===estado?' active-'+e:''}" id="drbtn-${d.id}-${e}"
+            onclick="_docSetEstado(${d.id},'${e}')">
+            <i class="ti ${e==='Presente'?'ti-circle-check':e==='Ausente'?'ti-circle-x':'ti-clock'}"></i> ${e}
+          </button>`).join('')}
+      </div>
+
+      <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px">Pase de salida — dio clases hasta</div>
+      <div class="bloque-grid">
+        ${BLOQUES_DOC.map(b => `
+          <button class="bloque-btn${b.id===bloque?' active':''}" id="drbloque-${d.id}-${b.id}"
+            onclick="_docSetBloque(${d.id},${b.id})">
+            <div>${b.label}</div>
+            <div class="bloque-btn-horas">${b.horas}</div>
+          </button>`).join('')}
+      </div>
+
+      <textarea class="doc-reg-obs" id="drobs-${d.id}" placeholder="Observaciones (opcional)…"
+        oninput="_docSetObs(${d.id},this.value)">${reg.observaciones||''}</textarea>
+
+      <button class="doc-reg-save" id="drsave-${d.id}" onclick="_docGuardar(${d.id})">
+        <i class="ti ti-device-floppy"></i> Guardar
+      </button>
+    </div>`;
+  }).join('');
+
+  _docActualizarResumen();
+}
+
+/* ─── MATRÍCULA ADMIN ─── */
+const MAT = { ano: '1', mencion: 'Telemática' };
+
+const MAT_CAMPOS = [
+  { id:'m-nombre',      label:'Nombre del estudiante'      },
+  { id:'m-apellido',    label:'Apellido del estudiante'    },
+  { id:'m-cedula',      label:'Cédula del estudiante'      },
+  { id:'m-rep_nombre',  label:'Nombre del representante'   },
+  { id:'m-rep_apellido',label:'Apellido del representante' },
+  { id:'m-rep_cedula',  label:'Cédula del representante'   },
+  { id:'m-rep_telefono',label:'Teléfono del representante' },
+  { id:'m-direccion',   label:'Dirección de vivienda'      },
+];
+
+function matToggle(btn, group) {
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  MAT[group] = btn.dataset.val;
+}
+
+function matBanner(type, msg) {
+  const b  = document.getElementById('mat-banner');
+  const ic = document.getElementById('mat-banner-icon');
+  const sp = document.getElementById('mat-banner-msg');
+  b.className = 'mat-banner ' + type;
+  b.style.display = 'flex';
+  ic.className = type === 'ok' ? 'ti ti-circle-check' : 'ti ti-alert-circle';
+  sp.textContent = msg;
+}
+function matHideBanner() {
+  document.getElementById('mat-banner').style.display = 'none';
+}
+
+function matClearErrors() {
+  MAT_CAMPOS.forEach(({ id }) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('mat-err');
+    const er = document.getElementById('me-' + id.slice(2));
+    if (er) er.textContent = '';
+  });
+  matHideBanner();
+}
+
+function matValidate() {
+  const errs = {};
+  MAT_CAMPOS.forEach(({ id, label }) => {
+    const el = document.getElementById(id);
+    if (!el || !el.value.trim()) errs[id] = label + ' es obligatorio';
+  });
+  const ced = document.getElementById('m-cedula');
+  if (ced && ced.value.trim() && !/^\d+$/.test(ced.value.trim()))
+    errs['m-cedula'] = 'La cédula debe contener solo números';
+  const rcd = document.getElementById('m-rep_cedula');
+  if (rcd && rcd.value.trim() && !/^\d+$/.test(rcd.value.trim()))
+    errs['m-rep_cedula'] = 'La cédula debe contener solo números';
+  return errs;
+}
+
+async function matGuardar() {
+  matClearErrors();
+  const errs = matValidate();
+  if (Object.keys(errs).length > 0) {
+    Object.entries(errs).forEach(([id, msg]) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('mat-err');
+      const er = document.getElementById('me-' + id.slice(2));
+      if (er) er.innerHTML = '<i class="ti ti-alert-circle" style="font-size:12px"></i>' + msg;
+    });
+    const n = Object.keys(errs).length;
+    matBanner('err', n === 1 ? '1 campo obligatorio sin completar' : n + ' campos obligatorios sin completar');
+    return;
+  }
+  const gradoMap = {'1':'1er Año','2':'2do Año','3':'3er Año','4':'4to Año','5':'5to Año','6':'6to Año'};
+  const body = {
+    nombre:       document.getElementById('m-nombre').value.trim(),
+    apellido:     document.getElementById('m-apellido').value.trim(),
+    cedula:       document.getElementById('m-cedula').value.trim(),
+    mencion:      MAT.mencion,
+    ano:          gradoMap[MAT.ano] || MAT.ano,
+    rep_nombre:   document.getElementById('m-rep_nombre').value.trim(),
+    rep_apellido: document.getElementById('m-rep_apellido').value.trim(),
+    rep_cedula:   document.getElementById('m-rep_cedula').value.trim(),
+    rep_telefono: document.getElementById('m-rep_telefono').value.trim(),
+    direccion:    document.getElementById('m-direccion').value.trim(),
+  };
+  try {
+    const res  = await fetch(API + '/admin/estudiantes', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      matBanner('ok', '✅ Estudiante guardado — N° ' + data.nro_lista);
+      MAT_CAMPOS.forEach(({ id }) => { const el = document.getElementById(id); if (el) el.value = ''; });
+      // reset toggles
+      document.querySelectorAll('[data-group="ano"]').forEach(b => b.classList.toggle('active', b.dataset.val==='1'));
+      document.querySelectorAll('[data-group="mencion"]').forEach(b => b.classList.toggle('active', b.dataset.val==='Telemática'));
+      MAT.ano = '1'; MAT.mencion = 'Telemática';
+      todosEstudiantes = []; // forzar recarga si se navega a Estudiantes
+    } else {
+      matBanner('err', data.error || 'No se pudo guardar el estudiante.');
+    }
+  } catch(e) {
+    matBanner('err', 'Error de red al guardar el estudiante.');
+  }
+}
+
+async function matBuscar() {
+  const cedula = document.getElementById('m-baja-ced').value.trim();
+  const el = document.getElementById('m-baja-result');
+  if (!cedula) { el.innerHTML='<div class="warn-box"><i class="ti ti-alert-circle"></i>Ingresa una cédula.</div>'; return; }
+  el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Buscando…</div>';
+  const data = await get('/admin/estudiantes/' + cedula);
+  if (!data || !data.success) {
+    el.innerHTML = '<div class="warn-box"><i class="ti ti-user-x"></i>Esa cédula no existe en el sistema.</div>';
+    return;
+  }
+  const e = data.estudiante;
+  el.innerHTML = `
+    <div class="card" style="border-color:rgba(239,68,68,.35);margin-bottom:0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:16px;font-weight:900;color:var(--text);margin-bottom:6px">${e.nombre} ${e.apellido}</div>
+          <div style="font-size:13px;color:var(--text3);margin-bottom:2px"><i class="ti ti-id-badge-2" style="margin-right:5px"></i>V-${cedula}</div>
+          <div style="font-size:13px;color:var(--text3)"><i class="ti ti-school" style="margin-right:5px"></i>${e.ano}° · ${e.mencion}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn" onclick="document.getElementById('m-baja-result').innerHTML='';document.getElementById('m-baja-ced').value=''">
+            Cancelar
+          </button>
+          <button class="btn btn-danger" style="font-weight:800" onclick="matEliminar('${cedula}')">
+            <i class="ti ti-trash"></i> SÍ, ELIMINAR
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function matEliminar(cedula) {
+  const el = document.getElementById('m-baja-result');
+  el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Eliminando…</div>';
+  try {
+    const res  = await fetch(API + '/admin/estudiantes/' + cedula, { method:'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      el.innerHTML = `<div class="api-dot" style="background:var(--green-dim);border-color:rgba(16,185,129,.25)">
+        <i class="ti ti-circle-check" style="color:var(--green);font-size:18px"></i>
+        <span style="color:var(--green);font-size:13px;font-weight:700">Estudiante eliminado correctamente.</span>
+      </div>`;
+      document.getElementById('m-baja-ced').value = '';
+      todosEstudiantes = [];
+    } else {
+      el.innerHTML = '<div class="warn-box"><i class="ti ti-x"></i>No se pudo eliminar.</div>';
+    }
+  } catch {
+    el.innerHTML = '<div class="warn-box"><i class="ti ti-wifi-off"></i>Error de red.</div>';
+  }
+}
+
+/* ─── BOOT ─── */
+// cargarResumen se llama al iniciar sesión via navTo('resumen')
+</script>
+
+<script>
+/* ════════════════════════════════════════════════════════
+   AUTH SYSTEM — Login, roles, sesión
+   Roles: admin | docente | invitado
+   ════════════════════════════════════════════════════════ */
+
+let SESSION = null;
+
+const ROL_LABEL = {
+  admin:          'Administrador',
+  docente_manana: 'Docente — Mañana',
+  docente_tarde:  'Docente — Tarde',
+  docente:        'Docente',
+  invitado:       'Invitado'
+};
+const ROL_COLOR = {
+  admin:          'role-admin',
+  docente_manana: 'role-docente',
+  docente_tarde:  'role-docente',
+  docente:        'role-docente',
+  invitado:       'role-invitado'
+};
+
+/* ── Toggle contraseña visible ── */
+document.getElementById('toggle-pass').addEventListener('click', () => {
+  const inp = document.getElementById('login-pass');
+  const ico = document.getElementById('eye-icon');
+  if (inp.type === 'password') { inp.type = 'text'; ico.className = 'ti ti-eye-off'; }
+  else                          { inp.type = 'password'; ico.className = 'ti ti-eye'; }
+});
+
+/* ── Enter en campos ── */
+['login-user','login-pass'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key==='Enter') intentarLogin(); })
+);
+
+/* ── Limpiar errores al escribir ── */
+document.getElementById('login-user').addEventListener('input', () => limpiarError('usuario'));
+document.getElementById('login-pass').addEventListener('input', () => limpiarError('contrasena'));
+
+function limpiarError(campo) {
+  document.getElementById('err-'+campo).classList.remove('show');
+  document.getElementById('err-general').classList.remove('show');
+}
+function mostrarError(campo, msg) {
+  document.getElementById('err-'+campo+'-msg').textContent = msg;
+  document.getElementById('err-'+campo).classList.add('show');
+}
+
+/* ── Login ── */
+async function intentarLogin() {
+  const usuario    = document.getElementById('login-user').value.trim();
+  const contrasena = document.getElementById('login-pass').value;
+  ['usuario','contrasena','general'].forEach(c => document.getElementById('err-'+c).classList.remove('show'));
+
+  if (!usuario)    { mostrarError('usuario', 'Ingresa tu usuario');     return; }
+  if (!contrasena) { mostrarError('contrasena', 'Ingresa tu contraseña'); return; }
+
+  const btn = document.getElementById('btn-ingresar');
+  btn.classList.add('loading'); btn.disabled = true;
+
+  try {
+    const res  = await fetch(API + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario, contrasena })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    if (!data.success) {
+      const campo = data.campo || 'general';
+      mostrarError(campo, data.message || 'Credenciales incorrectas');
+      return;
+    }
+
+    iniciarSesion({
+      nombre: data.nombre, apellido: data.apellido,
+      rol: data.rol, usuario: data.usuario,
+      menciones_permitidas: data.menciones_permitidas,
+      materia: data.materia,
+    });
+  } catch (err) {
+    mostrarError('general', 'No se pudo conectar con el servidor. Verifica la red.');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+/* ── Invitado ── */
+function entrarComoInvitado() {
+  iniciarSesion({ nombre:'Invitado', apellido:'', rol:'invitado', usuario:'invitado' });
+}
+
+/* ── Iniciar sesión ── */
+function iniciarSesion(sesion) {
+  SESSION = sesion;
+  const { nombre, apellido, rol } = sesion;
+  const nombreCompleto = apellido ? nombre+' '+apellido : nombre;
+
+  document.getElementById('login-overlay').classList.add('hidden');
+  document.getElementById('main-layout').style.display = 'flex';
+
+  /* Chip topbar */
+  const chip = document.getElementById('user-chip');
+  chip.style.display = 'flex';
+  const av = document.getElementById('chip-avatar');
+  av.textContent = nombre[0].toUpperCase();
+  av.className = 'user-chip-avatar ' + (ROL_COLOR[rol]||'role-invitado');
+  document.getElementById('chip-name').textContent = nombreCompleto;
+  document.getElementById('chip-role').textContent = ROL_LABEL[rol]||rol;
+
+  /* Sidebar */
+  document.getElementById('sidebar-nombre').textContent = nombreCompleto;
+  document.getElementById('sidebar-rol').textContent    = ROL_LABEL[rol]||rol;
+
+  /* Topbar label */
+  const labels = { admin:'Panel Administrativo', docente_manana:'Portal Docente — Turno Mañana', docente_tarde:'Portal Docente — Turno Tarde', invitado:'Modo Lectura' };
+  document.getElementById('topbar-label').textContent = labels[rol] || (rol.startsWith('docente')?'Portal Docente':'Panel');
+
+  /* Permisos por rol */
+  aplicarPermisosPorRol(rol, sesion);
+
+  /* Iniciar en resumen */
+  navTo('resumen');
+}
+
+/* ════════════════════════════════════════════════
+   SISTEMA DE PERMISOS POR ROL
+   ────────────────────────────────────────────────
+   admin          → todo + matrícula + docentes completo
+   docente_manana → años 1-3 ∩ menciones_permitidas
+   docente_tarde  → años 4-5 ∩ menciones_permitidas
+   invitado       → solo lectura (resumen, historial, estudiantes, estadísticas)
+                    sin matrícula, sin docentes
+   ════════════════════════════════════════════════ */
+function aplicarPermisosPorRol(rol, sesion) {
+  const mpStr = String(sesion.menciones_permitidas ?? '').trim();
+  const tieneMenciones = mpStr !== '' && mpStr !== 'null' && mpStr !== 'undefined';
+
+  /* ── 1. Años permitidos según rol ── */
+  const ANOS_POR_ROL = {
+    admin:          ['1','2','3','4','5'],
+    docente_manana: ['1','2','3'],
+    docente_tarde:  ['4','5'],
+    invitado:       ['1','2','3','4','5'],
+  };
+  const anosBase = ANOS_POR_ROL[rol] || ['1','2','3','4','5'];
+
+  /* Si tiene menciones_permitidas, intersectar años */
+  let anosPermitidos = anosBase;
+  if (tieneMenciones) {
+    const anosEnMenciones = [...new Set(
+      mpStr.split(',').map(p => p.trim().split(':')[1]).filter(Boolean)
+    )];
+    anosPermitidos = anosBase.filter(a => anosEnMenciones.includes(a));
+  }
+
+  /* ── 2. Menciones permitidas ── */
+  const todasMenciones = ['Telemática','Turismo','Administración','Contabilidad'];
+  let mencionesPermitidas = todasMenciones;
+  if (tieneMenciones) {
+    mencionesPermitidas = [...new Set(
+      mpStr.split(',').map(p => p.trim().split(':')[0]).filter(Boolean)
+    )].filter(m => todasMenciones.includes(m));
+    if (mencionesPermitidas.length === 0) mencionesPermitidas = todasMenciones;
+  }
+
+  /* ── 3. Aplicar restricciones a selects de AÑO ── */
+  ['hist-ano','est-ano','ina-ano'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => {
+      if (!opt.value) return; // "Todos" siempre visible
+      opt.hidden = !anosPermitidos.includes(opt.value);
+    });
+    /* Si el valor actual quedó fuera, resetear */
+    if (sel.value && !anosPermitidos.includes(sel.value)) sel.value = '';
+  });
+
+  /* ── 4. Aplicar restricciones a selects de MENCIÓN ── */
+  ['hist-mencion','est-mencion','ina-mencion','stat-mencion'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => {
+      if (!opt.value) return;
+      opt.hidden = !mencionesPermitidas.includes(opt.value);
+    });
+    if (sel.value && !mencionesPermitidas.includes(sel.value)) sel.value = '';
+    /* En estadísticas, setear la primera mención permitida */
+    if (selId === 'stat-mencion' && !sel.value) {
+      const primerOpt = Array.from(sel.options).find(o => !o.hidden && o.value);
+      if (primerOpt) sel.value = primerOpt.value;
+    }
+  });
+
+  /* ── 5. Sidebar — mostrar/ocultar secciones ── */
+  const esAdmin    = rol === 'admin';
+  const esDocente  = rol === 'docente_manana' || rol === 'docente_tarde';
+  const esInvitado = rol === 'invitado';
+
+  /* Matrícula: solo admin */
+  document.getElementById('nav-sec-admin').style.display  = esAdmin ? '' : 'none';
+  document.getElementById('nav-matricula').style.display  = esAdmin ? '' : 'none';
+
+  /* Tab "Registrar asistencia" en la página de docentes: solo admin */
+  const tabReg = document.getElementById('doc-tab-registro');
+  if (tabReg) tabReg.style.display = esAdmin ? '' : 'none';
+
+  /* Docentes: admin y docentes pueden ver, invitado no */
+  const navDocentes = document.getElementById('nav-docentes');
+  if (esInvitado) {
+    navDocentes.classList.add('nav-locked');
+  } else {
+    navDocentes.classList.remove('nav-locked');
+  }
+
+  /* ── 6. Banners informativos en páginas ── */
+  const turno = rol === 'docente_manana' ? 'Turno Mañana (1°–3°)'
+              : rol === 'docente_tarde'   ? 'Turno Tarde (4°–5°)'
+              : null;
+
+  /* Banner para historial/estudiantes/inasistencias si es docente con filtro */
+  const bannerDocenteHtml = turno ? `
+    <div class="rol-banner rol-banner-info">
+      <i class="ti ti-info-circle"></i>
+      Mostrando datos de tu turno: <strong>${turno}</strong>${tieneMenciones ? ` · Menciones: <strong>${mencionesPermitidas.join(', ')}</strong>` : ''}
+    </div>` : '';
+
+  ['historial','estudiantes','estadisticas'].forEach(pid => {
+    const el = document.getElementById(pid+'-rol-banner');
+    if (el) el.innerHTML = bannerDocenteHtml;
+  });
+
+  /* ── 7. Página de matrícula — bloquear si no es admin ── */
+  if (!esAdmin) {
+    const pageMat = document.getElementById('page-matricula');
+    pageMat.innerHTML = `
+      <div class="page-locked">
+        <i class="ti ti-lock"></i>
+        <h3>Acceso restringido</h3>
+        <p>La sección de matrícula es exclusiva para administradores del sistema.</p>
+      </div>`;
+  }
+
+  /* ── 8. Página de docentes — bloquear solo para invitado ── */
+  if (esInvitado) {
+    const pageDoc = document.getElementById('page-docentes');
+    pageDoc.innerHTML = `
+      <div class="page-locked">
+        <i class="ti ti-lock"></i>
+        <h3>Acceso restringido</h3>
+        <p>Debes iniciar sesión con una cuenta docente o de administrador para ver el personal.</p>
+      </div>`;
+  }
+
+  /* ── 9. Resumen — si es invitado, ocultar métricas sensibles ── */
+  if (esInvitado) {
+    /* Se maneja al renderizar cargarResumen con flag SESSION.rol */
+  }
+
+  /* ── 10. Bloquear acciones de escritura para no-admin ── */
+  /* Botones de matrícula ya bloqueados por el HTML replacement arriba */
+  /* Para invitado: marcar todas las páginas de escritura como solo-lectura */
+  if (esInvitado) {
+    ['btn-ingresar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+}
+
+/* ── Cerrar sesión ── */
+function cerrarSesion(e) {
+  if (e) e.stopPropagation();
+  SESSION = null;
+  document.getElementById('user-menu').classList.remove('open');
+  document.getElementById('main-layout').style.display = 'none';
+  document.getElementById('login-overlay').classList.remove('hidden');
+  document.getElementById('login-user').value  = '';
+  document.getElementById('login-pass').value  = '';
+  ['usuario','contrasena','general'].forEach(c => document.getElementById('err-'+c).classList.remove('show'));
+  /* Re-trigger animation */
+  const card = document.querySelector('.login-card');
+  card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+}
+
+/* ── Menú usuario ── */
+/* ════════════════════════════════════════════════
+   EDITAR ESTUDIANTE (solo admin)
+   ════════════════════════════════════════════════ */
+let _catalogosCache = null;
+let _editEstudianteId = null;
+
+async function abrirEditarEstudiante() {
+  const modal = document.getElementById('modal-estudiante');
+  const datos = modal._datosActuales;
+  if (!datos) return;
+  _editEstudianteId = datos.id;
+
+  /* Cargar catálogos si no están en cache */
+  if (!_catalogosCache) {
+    _catalogosCache = await (await fetch(API + '/catalogos')).json();
+  }
+  const { menciones, grados } = _catalogosCache;
+
+  /* Poblar selects */
+  const selMencion = document.getElementById('edit-mencion_id');
+  const selGrado   = document.getElementById('edit-grado_id');
+  selMencion.innerHTML = '<option value="">— seleccionar —</option>' +
+    menciones.map(m => `<option value="${m.id}" ${m.nombre===datos.mencion?'selected':''}>${m.nombre}</option>`).join('');
+  selGrado.innerHTML = '<option value="">— seleccionar —</option>' +
+    grados.map(g => `<option value="${g.id}" ${String(g.id)===String(datos.grado_id||datos.ano)?'selected':''}>${g.nombre}° Año</option>`).join('');
+
+  /* Rellenar campos */
+  document.getElementById('edit-nombre').value   = datos.nombre   || '';
+  document.getElementById('edit-apellido').value = datos.apellido || '';
+  document.getElementById('edit-cedula').value   = datos.cedula   || '';
+  document.getElementById('edit-seccion').value  = datos.seccion  || '';
+  document.getElementById('edit-genero_id').value = datos.genero === 'Masculino' ? '1' : datos.genero === 'Femenino' ? '2' : '';
+  document.getElementById('edit-error').style.display = 'none';
+
+  /* Mostrar modal editar */
+  const me = document.getElementById('modal-editar');
+  me.style.display = 'flex';
+}
+
+function cerrarEditarEstudiante() {
+  document.getElementById('modal-editar').style.display = 'none';
+}
+
+async function guardarEdicionEstudiante() {
+  const btn = document.getElementById('btn-guardar-edit');
+  const errEl = document.getElementById('edit-error');
+  errEl.style.display = 'none';
+
+  const nombre     = document.getElementById('edit-nombre').value.trim();
+  const apellido   = document.getElementById('edit-apellido').value.trim();
+  const cedula     = document.getElementById('edit-cedula').value.trim();
+  const mencion_id = document.getElementById('edit-mencion_id').value;
+  const grado_id   = document.getElementById('edit-grado_id').value;
+  const seccion    = document.getElementById('edit-seccion').value.trim();
+  const genero_id  = document.getElementById('edit-genero_id').value;
+
+  if (!nombre || !apellido || !cedula) {
+    errEl.textContent = 'Nombre, apellido y cédula son obligatorios.';
+    errEl.style.display = 'block'; return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Guardando…';
+
+  try {
+    const res = await fetch(API + '/admin/estudiantes/' + _editEstudianteId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, apellido, cedula, mencion_id, grado_id, seccion, genero_id, representante_id: null })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar');
+
+    cerrarEditarEstudiante();
+    _cerrarModal();
+    /* Recargar lista de estudiantes */
+    todosEstudiantes = [];
+    if (document.getElementById('page-estudiantes').classList.contains('active')) cargarEstudiantes();
+    /* Mostrar confirmación */
+    mostrarToast('Estudiante actualizado correctamente', 'green');
+  } catch(err) {
+    errEl.textContent = 'Error: ' + err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar cambios';
+  }
+}
+
+function mostrarToast(msg, color='sky') {
+  let toast = document.getElementById('toast-global');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-global';
+    toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:9999;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;pointer-events:none;transition:opacity .3s';
+    document.body.appendChild(toast);
+  }
+  const colors = { green:'background:#10B981;color:#fff', sky:'background:var(--accent);color:var(--accent-dark)', red:'background:#EF4444;color:#fff' };
+  toast.style.cssText += ';' + (colors[color]||colors.sky);
+  toast.style.opacity = '1';
+  toast.textContent = msg;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
+function toggleUserMenu() {
+  document.getElementById('user-menu').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const chip = document.getElementById('user-chip');
+  if (chip && !chip.contains(e.target))
+    document.getElementById('user-menu').classList.remove('open');
+});
+</script>
+</body>
+</html>

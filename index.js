@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 app.get('/dashboard', (req, res) => {
-    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v13.html');
+    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v14.html');
     fs.readFile(filePath, 'utf8', (err, html) => {
         if (err) {
             console.error('❌ No se encontró el dashboard:', err.message);
@@ -289,10 +289,8 @@ app.post('/admin/estudiantes', (req, res) => {
         return res.status(400).json({ success: false, error: 'Faltan campos obligatorios: nombre y cedula' });
     }
 
-
-    // Cedula del estudiante se guarda con prefijo V-/E- para mostrar nacionalidad en el modal
-    // Cedula del representante se limpia porque chk_cedula_rep_8 espera solo numeros
-    const cedulaLimpia    = cedula;
+    // Limpiar prefijos V-/E- de ambas cedulas (la DB guarda solo numeros)
+    const cedulaLimpia    = String(cedula).replace(/^[VE]-/i, '').trim();
     const repCedulaLimpia = rep_cedula ? String(rep_cedula).replace(/^[VE]-/i, '').trim() : null;
 
     // Función interna que hace el upsert una vez que tenemos mencion_id y grado_id

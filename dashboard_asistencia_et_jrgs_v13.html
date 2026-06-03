@@ -1234,7 +1234,7 @@ textarea.mat-input { resize: vertical; }
           </div>
           <div style="display:flex;align-items:center;gap:0;max-width:300px">
             <span id="m-cedula-prefix" style="padding:0 10px;height:46px;display:flex;align-items:center;background:var(--surface3);border:1.5px solid transparent;border-right:none;border-radius:12px 0 0 12px;font-weight:800;font-size:15px;color:var(--accent-dark);user-select:none">V-</span>
-            <input id="m-cedula" class="mat-input" placeholder="Solo números" style="border-radius:0 12px 12px 0;margin-bottom:0;flex:1">
+            <input id="m-cedula" class="mat-input" placeholder="Solo números" maxlength="8" style="border-radius:0 12px 12px 0;margin-bottom:0;flex:1">
           </div>
           <div id="me-cedula" class="mat-field-err"></div>
         </div>
@@ -1260,7 +1260,7 @@ textarea.mat-input { resize: vertical; }
             </div>
             <div style="display:flex;align-items:center;gap:0">
               <span id="m-rep-cedula-prefix" style="padding:0 10px;height:46px;display:flex;align-items:center;background:var(--surface3);border:1.5px solid transparent;border-right:none;border-radius:12px 0 0 12px;font-weight:800;font-size:15px;color:var(--accent-dark);user-select:none">V-</span>
-              <input id="m-rep_cedula" class="mat-input" placeholder="Solo números" style="border-radius:0 12px 12px 0;margin-bottom:0;flex:1">
+              <input id="m-rep_cedula" class="mat-input" placeholder="Solo números" maxlength="8" style="border-radius:0 12px 12px 0;margin-bottom:0;flex:1">
             </div>
             <div id="me-rep_cedula" class="mat-field-err"></div>
           </div>
@@ -2703,12 +2703,16 @@ function matValidate() {
   const rcdVal = document.getElementById('m-rep_cedula').value.trim();
   if (cedVal && !/^\d+$/.test(cedVal)) {
     errs['m-cedula'] = 'La cédula debe contener solo números';
+  } else if (cedVal && cedVal.length !== 8) {
+    errs['m-cedula'] = 'La cédula debe tener exactamente 8 dígitos';
   } else if (cedVal) {
     const rango = validarRangoCedula(cedVal, 'm-cedula', MAT.cedula_tipo);
     if (rango) errs['m-cedula'] = rango;
   }
   if (rcdVal && !/^\d+$/.test(rcdVal)) {
     errs['m-rep_cedula'] = 'La cédula debe contener solo números';
+  } else if (rcdVal && rcdVal.length !== 8) {
+    errs['m-rep_cedula'] = 'La cédula debe tener exactamente 8 dígitos';
   } else if (rcdVal) {
     const rango = validarRangoCedula(rcdVal, 'm-rep_cedula', MAT.rep_cedula_tipo);
     if (rango) errs['m-rep_cedula'] = rango;

@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 app.get('/dashboard', (req, res) => {
-    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v13.html');
+    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v14.html');
     fs.readFile(filePath, 'utf8', (err, html) => {
         if (err) {
             console.error('❌ No se encontró el dashboard:', err.message);
@@ -289,6 +289,12 @@ app.post('/admin/estudiantes', (req, res) => {
         return res.status(400).json({ success: false, error: 'Faltan campos obligatorios: nombre y cedula' });
     }
 
+
+    // Cedula del estudiante se guarda con prefijo V-/E- para mostrar nacionalidad en el modal
+    // Cedula del representante se limpia porque chk_cedula_rep_8 espera solo numeros
+    const cedulaLimpia    = cedula;
+    const repCedulaLimpia = rep_cedula ? String(rep_cedula).replace(/^[VE]-/i, '').trim() : null;
+
     // Función interna que hace el upsert una vez que tenemos mencion_id y grado_id
     function ejecutarConIds(mencion_id, grado_id) {
         if (!mencion_id || !grado_id) {
@@ -306,11 +312,11 @@ app.post('/admin/estudiantes', (req, res) => {
             direccion = VALUES(direccion)
     `;
         const nac_id = rep_nacionalidad_id ? parseInt(rep_nacionalidad_id) : 1;
-        db.query(upsertRep, [rep_cedula || null, nac_id, rep_nombre || null, rep_apellido || null, rep_telefono || null, direccion || null], (err) => {
+        db.query(upsertRep, [repCedulaLimpia || null, nac_id, rep_nombre || null, rep_apellido || null, rep_telefono || null, direccion || null], (err) => {
             if (err) return res.status(500).json({ success: false, error: err.message });
 
             const getRepId = 'SELECT id FROM representantes WHERE cedula = ? LIMIT 1';
-            db.query(getRepId, [rep_cedula || null], (err2, repRows) => {
+            db.query(getRepId, [repCedulaLimpia || null], (err2, repRows) => {
                 const representante_id = repRows && repRows.length > 0 ? repRows[0].id : null;
 
                 const queryMax = `
@@ -329,7 +335,7 @@ app.post('/admin/estudiantes', (req, res) => {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `;
                     db.query(queryInsert, [
-                        cedula, nombre, apellido,
+                        cedulaLimpia, nombre, apellido,
                         mencion_id, grado_id, siguiente_nro,
                         seccion || null, genero_id || null, representante_id
                     ], (err4) => {

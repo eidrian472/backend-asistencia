@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 app.get('/dashboard', (req, res) => {
-    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v13.html');
+    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v14.html');
     fs.readFile(filePath, 'utf8', (err, html) => {
         if (err) {
             console.error('❌ No se encontró el dashboard:', err.message);
@@ -217,12 +217,14 @@ app.get('/estudiantes', (req, res) => {
             r.apellido  AS rep_apellido,
             r.cedula    AS rep_cedula,
             r.telefono  AS rep_telefono,
-            r.direccion AS direccion
+            r.direccion AS direccion,
+            n.nombre    AS rep_nacionalidad
         FROM estudiantes_v2 e
         LEFT JOIN menciones  men ON e.mencion_id     = men.id
         LEFT JOIN grados     g   ON e.grado_id       = g.id
         LEFT JOIN generos    gen ON e.genero_id      = gen.id
         LEFT JOIN representantes r ON e.representante_id = r.id
+        LEFT JOIN nacionalidades n ON r.nacionalidad_id  = n.id
         ${where}
         ORDER BY men.nombre ASC, g.id ASC, e.nro_lista ASC
     `;
@@ -251,16 +253,24 @@ app.get('/admin/estudiantes/:cedula', (req, res) => {
         SELECT
             e.id, e.cedula, e.nombre, e.apellido, e.nro_lista, e.seccion,
             men.nombre AS mencion, men.id AS mencion_id,
-            g.nombre   AS ano,    g.id   AS grado_id
+            g.nombre   AS ano,    g.id   AS grado_id,
+            r.nombre   AS rep_nombre,
+            r.apellido AS rep_apellido,
+            r.cedula   AS rep_cedula,
+            r.telefono AS rep_telefono,
+            r.direccion AS direccion,
+            n.nombre   AS rep_nacionalidad
         FROM estudiantes_v2 e
-        LEFT JOIN menciones men ON e.mencion_id = men.id
-        LEFT JOIN grados    g   ON e.grado_id   = g.id
+        LEFT JOIN menciones      men ON e.mencion_id      = men.id
+        LEFT JOIN grados         g   ON e.grado_id        = g.id
+        LEFT JOIN representantes r   ON e.representante_id = r.id
+        LEFT JOIN nacionalidades n   ON r.nacionalidad_id  = n.id
         WHERE e.cedula = ?
         LIMIT 1
     `;
     db.query(query, [req.params.cedula], (err, result) => {
         if (err || result.length === 0) return res.json({ success: false });
-        const est = { ...result[0], ano: result[0].año };
+        const est = { ...result[0], ano: result[0].ano };
         res.json({ success: true, estudiante: est });
     });
 });
@@ -272,7 +282,7 @@ app.post('/admin/estudiantes', (req, res) => {
         mencion_id: mencion_id_raw, grado_id: grado_id_raw,
         mencion: mencion_nombre, ano: ano_nombre,
         seccion, genero_id,
-        rep_nombre, rep_apellido, rep_cedula, rep_telefono, direccion
+        rep_nombre, rep_apellido, rep_cedula, rep_nacionalidad_id, rep_telefono, direccion
     } = req.body;
 
     if (!nombre || !cedula) {
@@ -286,15 +296,17 @@ app.post('/admin/estudiantes', (req, res) => {
         }
 
         const upsertRep = `
-        INSERT INTO representantes (cedula, nombre, apellido, telefono, direccion)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO representantes (cedula, nacionalidad_id, nombre, apellido, telefono, direccion)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
+            nacionalidad_id = VALUES(nacionalidad_id),
             nombre    = VALUES(nombre),
             apellido  = VALUES(apellido),
             telefono  = VALUES(telefono),
             direccion = VALUES(direccion)
     `;
-        db.query(upsertRep, [rep_cedula || null, rep_nombre || null, rep_apellido || null, rep_telefono || null, direccion || null], (err) => {
+        const nac_id = rep_nacionalidad_id ? parseInt(rep_nacionalidad_id) : 1;
+        db.query(upsertRep, [rep_cedula || null, nac_id, rep_nombre || null, rep_apellido || null, rep_telefono || null, direccion || null], (err) => {
             if (err) return res.status(500).json({ success: false, error: err.message });
 
             const getRepId = 'SELECT id FROM representantes WHERE cedula = ? LIMIT 1';
@@ -665,13 +677,17 @@ app.get('/inasistencias-acumuladas', (req, res) => {
             ea.descripcion AS estado,
             a.observaciones,
             mat.nombre  AS materia,
-            DATE_FORMAT(a.fecha, '%d/%m/%Y') AS fecha
+            DATE_FORMAT(a.fecha, '%d/%m/%Y') AS fecha,
+            r.nombre    AS rep_nombre,
+            r.apellido  AS rep_apellido,
+            r.telefono  AS rep_telefono
         FROM asistencias_v2 a
-        JOIN estudiantes_v2    e   ON a.estudiante_id = e.id
-        JOIN menciones         men ON e.mencion_id    = men.id
-        JOIN grados            g   ON e.grado_id      = g.id
-        JOIN materias          mat ON a.materia_id    = mat.id
-        JOIN estados_asistencia ea ON a.estado_id     = ea.id
+        JOIN estudiantes_v2    e   ON a.estudiante_id  = e.id
+        JOIN menciones         men ON e.mencion_id     = men.id
+        JOIN grados            g   ON e.grado_id       = g.id
+        JOIN materias          mat ON a.materia_id     = mat.id
+        JOIN estados_asistencia ea ON a.estado_id      = ea.id
+        LEFT JOIN representantes r  ON e.representante_id = r.id
         WHERE ${where}
         ORDER BY men.nombre ASC, g.nombre ASC, e.nro_lista ASC, a.fecha DESC
     `;
@@ -693,6 +709,9 @@ app.get('/inasistencias-acumuladas', (req, res) => {
                     nro_lista: r.nro_lista,
                     mencion: r.mencion,
                     ano: r.ano,
+                    rep_nombre: r.rep_nombre ?? null,
+                    rep_apellido: r.rep_apellido ?? null,
+                    rep_telefono: r.rep_telefono ?? null,
                     totalInasistencias: 0,
                     totalRetirados: 0,
                     registros: [],

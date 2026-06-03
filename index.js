@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 app.get('/dashboard', (req, res) => {
-    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v14.html');
+    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v13.html');
     fs.readFile(filePath, 'utf8', (err, html) => {
         if (err) {
             console.error('❌ No se encontró el dashboard:', err.message);

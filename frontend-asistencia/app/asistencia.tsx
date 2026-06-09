@@ -189,7 +189,15 @@ export default function AsistenciaScreen() {
             const idsConAsistencia = Object.keys(asistenciaActiva).map(Number);
             const todosPresentes = listaFresca.length > 0 &&
                 listaFresca.every((e: any) => idsConAsistencia.includes(e.id));
-            if (todosPresentes) setVistaFinal(true);
+            if (todosPresentes) {
+                setVistaFinal(true);
+                // Avisar al docente que ya existe asistencia guardada hoy
+                Alert.alert(
+                    'Lista ya registrada',
+                    `Ya registraste la asistencia de hoy para "${materiaFresca}". Se muestra en modo solo lectura.\n\nToca "Editar Asistencia" si necesitas hacer cambios.`,
+                    [{ text: 'Entendido' }]
+                );
+            }
 
         } catch (e) { /* silencioso — no bloquea la pantalla */ }
     }, [seleccion, anoFiltro]);
@@ -210,9 +218,24 @@ export default function AsistenciaScreen() {
 
     const cambiarMateria = (nuevaMateria: string) => {
         if (nuevaMateria === materiaActiva) return;
-        setMateriaActiva(nuevaMateria);
-        setBusqueda('');
-        cargarClaseHoy(nuevaMateria);
+        const tieneDatos = Object.keys(asistenciaPorMateria[materiaActiva] ?? {}).length > 0;
+        const hacerCambio = () => {
+            setMateriaActiva(nuevaMateria);
+            setBusqueda('');
+            cargarClaseHoy(nuevaMateria);
+        };
+        if (tieneDatos) {
+            Alert.alert(
+                `¿Cambiar a ${nuevaMateria}?`,
+                `El progreso de "${materiaActiva}" se conserva. Puedes regresar en cualquier momento.`,
+                [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Cambiar', onPress: hacerCambio },
+                ]
+            );
+        } else {
+            hacerCambio();
+        }
     };
 
     const guardarClase = async () => {
@@ -576,17 +599,18 @@ export default function AsistenciaScreen() {
                     <Ionicons name={headerVisible ? 'chevron-up' : 'chevron-down'} size={18} color="#64748B" />
                 </TouchableOpacity>
 
-                {!esAdmin && (
-                    <TouchableOpacity
-                        style={[styles.exportBtn, exportando && { opacity: 0.6 }]}
-                        onPress={exportarExcel}
-                        disabled={exportando}
-                    >
-                        <Ionicons name="download-outline" size={16} color="#10B981" />
-                        <Text style={styles.exportBtnText}>{exportando ? '...' : 'Excel'}</Text>
-                    </TouchableOpacity>
-                )}
+
             </View>
+
+            {/* ── MATERIA ACTIVA BANNER (solo cuando hay >1 materia) ── */}
+            {!esAdmin && materiasDisponibles.length > 1 && (
+                <View style={styles.materiaActivaBanner}>
+                    <Ionicons name="book" size={14} color="#009EF7" />
+                    <Text style={styles.materiaActivaBannerText}>
+                        Pasando lista en: <Text style={{ fontWeight: '900', color: '#009EF7' }}>{materiaActiva}</Text>
+                    </Text>
+                </View>
+            )}
 
             {/* ── MATERIA + CLASE (se ocultan con el botón) ── */}
             {!esAdmin && (
@@ -958,11 +982,12 @@ interface CampoModalProps {
 const CampoModal = React.memo(({ icono, label, campo, keyboardType = 'default', multiline = false, modoEdicion, valorVista, formRef, maxLength }: CampoModalProps) => (
     <View>
         <View style={campoStyles.row}>
-            <View style={campoStyles.iconBox}><Ionicons name={icono as any} size={16} color="#38BDF8" /></View>
+            {/* Ícono actualizado al azul activo de la marca */}
+            <View style={campoStyles.iconBox}><Ionicons name={icono as any} size={16} color="#009EF7" /></View>
             <View style={{ flex: 1 }}>
                 <Text style={campoStyles.label}>{label}</Text>
                 {modoEdicion ? (
-                    <TextInput style={[campoStyles.input, multiline && { minHeight: 60 }]} defaultValue={formRef.current[campo] ?? ''} onChangeText={(t) => { formRef.current[campo] = t; }} placeholderTextColor="#475569" placeholder="—" keyboardType={keyboardType} multiline={multiline} maxLength={maxLength} autoCorrect={false} autoCapitalize="words" />
+                    <TextInput style={[campoStyles.input, multiline && { minHeight: 60 }]} defaultValue={formRef.current[campo] ?? ''} onChangeText={(t) => { formRef.current[campo] = t; }} placeholderTextColor="#8A9BB0" placeholder="—" keyboardType={keyboardType} multiline={multiline} maxLength={maxLength} autoCorrect={false} autoCapitalize="words" />
                 ) : (
                     <Text style={campoStyles.value}>{valorVista || '—'}</Text>
                 )}
@@ -974,15 +999,21 @@ const CampoModal = React.memo(({ icono, label, campo, keyboardType = 'default', 
 
 const campoStyles = StyleSheet.create({
     row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4 },
-    iconBox: { width: 34, height: 34, backgroundColor: '#1E293B', borderRadius: 9, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-    label: { color: '#64748B', fontSize: 11, fontWeight: '600', marginBottom: 2 },
-    value: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-    input: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', backgroundColor: '#1E293B', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, flex: 1 },
-    sep: { height: 1, backgroundColor: '#1E293B', marginVertical: 10 },
+    // Ícono izquierdo de cada campo del modal (diseño claro Movistar)
+    iconBox: { width: 34, height: 34, backgroundColor: '#EAF6FF' /* Azul suave de marca — fondo del cuadrito del ícono */, borderRadius: 9, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+    // Etiqueta/label gris sobre el valor
+    label: { color: '#8A9BB0' /* Gris azulado secundario — texto "Nombre", "Cédula", etc. */, fontSize: 11, fontWeight: '600', marginBottom: 2 },
+    // Valor del campo en modo solo lectura
+    value: { color: '#1A1A2E' /* Azul oscuro premium — texto del valor del estudiante en modo vista */, fontSize: 15, fontWeight: '700' },
+    // Input de edición dentro del modal
+    input: { color: '#1A1A2E' /* Azul oscuro premium — texto escrito */, fontSize: 15, fontWeight: '700', backgroundColor: '#F2F4F7' /* Gris claro suave — fondo del input editable */, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, flex: 1 },
+    // Separador horizontal entre filas de datos
+    sep: { height: 1, backgroundColor: '#E8EDF2' /* Gris sutil — línea divisoria limpia entre campos */, marginVertical: 10 },
 });
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#020617', paddingHorizontal: 20 },
+    // Fondo principal de toda la pantalla de asistencia
+    container: { flex: 1, backgroundColor: '#F7F9FC' /* Gris/azul muy claro — nuevo fondo base de toda la app */, paddingHorizontal: 20 },
 
     // ── Sticky mini-header ──────────────────────────────────────────────────
     stickyHeader: {
@@ -993,19 +1024,24 @@ const styles = StyleSheet.create({
         marginBottom: 8,
         paddingBottom: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#1E293B',
+        borderBottomColor: '#E0E6ED' /* Gris sutil — línea divisoria debajo del mini-header */,
     },
-    backBtn: { color: '#38BDF8', fontSize: 15, fontWeight: '700' },
-    titulo: { fontSize: 18, fontWeight: '900', color: '#F8FAFC', flex: 1, textAlign: 'center', marginHorizontal: 8 },
+    // Botón "← Volver" del mini-header
+    backBtn: { color: '#009EF7' /* Azul Movistar — link de navegación activo */, fontSize: 15, fontWeight: '700' },
+    // Título central del mini-header (nombre de mención y año)
+    titulo: { fontSize: 18, fontWeight: '900', color: '#1A1A2E' /* Azul oscuro premium — título principal "Mención · Año" */, flex: 1, textAlign: 'center', marginHorizontal: 8 },
     exportBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 4,
-        backgroundColor: '#0F172A', paddingHorizontal: 10, paddingVertical: 7,
-        borderRadius: 10, borderWidth: 1, borderColor: '#10B981',
+        backgroundColor: '#FFFFFF' /* Blanco puro — fondo limpio */, paddingHorizontal: 10, paddingVertical: 7,
+        borderRadius: 10, borderWidth: 1,
+        borderColor: '#00C853' /* Verde brillante — marca oficial para acciones de éxito o archivos Excel */,
     },
-    exportBtnText: { color: '#10B981', fontSize: 12, fontWeight: '700' },
+    // Texto "Excel" del botón de exportar
+    exportBtnText: { color: '#00C853' /* Verde brillante — texto e ícono del botón Excel */, fontSize: 12, fontWeight: '700' },
     toggleBtn: {
         width: 32, height: 32, borderRadius: 10,
-        backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B',
+        backgroundColor: '#FFFFFF' /* Blanco puro */, borderWidth: 1,
+        borderColor: '#E0E6ED' /* Gris sutil — borde del botón de chevron toggle */,
         justifyContent: 'center', alignItems: 'center',
         marginLeft: 6,
     },
@@ -1013,164 +1049,403 @@ const styles = StyleSheet.create({
     // ── Colapsable ──────────────────────────────────────────────────────────
     colapsable: {},
 
-    // Tarjeta con estado marcado
-    cardRegistrado: { backgroundColor: '#0F172A' },
+    // Tarjeta de estudiante ya registrado (mismo fondo que la tarjeta base)
+    cardRegistrado: { backgroundColor: '#FFFFFF' /* Blanco puro — consistente con el diseño general claro */ },
     checkOverlay: {
         position: 'absolute', bottom: -4, right: -4,
         width: 20, height: 20, borderRadius: 10,
         justifyContent: 'center', alignItems: 'center',
-        borderWidth: 2, borderColor: '#020617',
+        borderWidth: 2,
+        borderColor: '#FFFFFF' /* Blanco puro — aísla el check sobre el avatar del alumno */,
     },
     estadoChip: {
         alignSelf: 'flex-start', borderRadius: 8,
         paddingHorizontal: 8, paddingVertical: 3,
         borderWidth: 1, marginTop: 4, marginBottom: 4,
+        // NOTA: los fondos y bordes se aplican dinámicamente según la guía de estados:
+        // Asistido → backgroundColor: '#00C85315' (Verde suave), borderColor: '#00C85340'
+        // Inasistente → backgroundColor: '#FF3B3015' (Rojo suave), borderColor: '#FF3B3040'
+        // Retirado → backgroundColor: '#FF950015' (Naranja suave), borderColor: '#FF950040'
     },
     estadoChipText: { fontSize: 11, fontWeight: '800' },
+    // NOTA: El color del texto del chip también es dinámico y actualizado:
+    // Asistido → '#00C853' (Verde), Inasistente → '#FF3B30' (Rojo), Retirado → '#FF9500' (Naranja)
 
     // Progreso y resumen
     resumenWrapper: { marginTop: 10 },
     listaCompletaBanner: {
         flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: '#10B98115', borderRadius: 12, padding: 12,
-        borderWidth: 1, borderColor: '#10B98140', marginBottom: 10,
+        backgroundColor: '#00C85315' /* Verde brillante al 8% de opacidad — fondo del banner de lista completa */, borderRadius: 12, padding: 12,
+        borderWidth: 1,
+        borderColor: '#00C85340' /* Verde brillante al 25% de opacidad — borde del banner */, marginBottom: 10,
     },
-    listaCompletaText: { color: '#10B981', fontSize: 13, fontWeight: '700', flex: 1 },
+    // Texto del banner de lista completa
+    listaCompletaText: { color: '#00C853' /* Verde brillante — mensaje de éxito de lista completa */, fontSize: 13, fontWeight: '700', flex: 1 },
     verListaBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 4,
-        backgroundColor: '#10B98125', paddingHorizontal: 10, paddingVertical: 5,
-        borderRadius: 8, borderWidth: 1, borderColor: '#10B98150',
+        backgroundColor: '#00C85325' /* Verde brillante al 14% opacidad — fondo del botón "Ver" */, paddingHorizontal: 10, paddingVertical: 5,
+        borderRadius: 8, borderWidth: 1,
+        borderColor: '#00C85350' /* Verde brillante al 31% opacidad — borde del mini-botón "Ver" */,
     },
-    verListaBtnText: { color: '#10B981', fontSize: 12, fontWeight: '800' },
+    // Texto del mini-botón "Ver" del banner de lista completa
+    verListaBtnText: { color: '#00C853' /* Verde brillante — texto del mini-botón */, fontSize: 12, fontWeight: '800' },
 
     progresoContainer: { marginBottom: 8 },
     progresoHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-    progresoLabel: { color: '#64748B', fontSize: 11, fontWeight: '600' },
+    // Etiqueta "Progreso del pase de lista"
+    progresoLabel: { color: '#8A9BB0' /* Gris azulado secundario — texto informativo sobre la barra */, fontSize: 11, fontWeight: '600' },
     progresoContador: { fontSize: 13 },
-    progresoBg: { height: 6, backgroundColor: '#1E293B', borderRadius: 3, overflow: 'hidden' },
-    progresoFill: { height: '100%', backgroundColor: '#38BDF8', borderRadius: 3 },
+    // NOTA: El contador usa colores inline: '#009EF7' (Azul activo) para el marcado, '#8A9BB0' para el total
+    progresoBg: { height: 6, backgroundColor: '#E8EDF2' /* Gris claro sutil — pista vacía de la barra de progreso */, borderRadius: 3, overflow: 'hidden' },
+    progresoFill: { height: '100%', backgroundColor: '#009EF7' /* Azul Movistar — cambia a '#00C853' (Verde) al completarse */, borderRadius: 3 },
 
     resumenContainer: {
-        flexDirection: 'row', backgroundColor: '#0F172A', padding: 10,
-        borderRadius: 14, borderWidth: 1, borderColor: '#1E293B',
+        flexDirection: 'row',
+        backgroundColor: '#FFFFFF' /* Blanco puro — fondo de la caja de resumen */, padding: 10,
+        borderRadius: 14, borderWidth: 1,
+        borderColor: '#E0E6ED' /* Gris sutil — borde de la caja de resumen */,
         justifyContent: 'space-around', alignItems: 'center',
     },
     resumenItem: { alignItems: 'center', flex: 1 },
+    // NOTA: resumenLabel recibe colores inline actualizados por item: P → '#00C853', A → '#FF3B30', R → '#FF9500', Sin marcar → '#8A9BB0'
     resumenLabel: { fontSize: 15, fontWeight: '900' },
-    resumenNum: { color: '#F8FAFC', fontSize: 18, fontWeight: '900', marginTop: 1 },
-    resumenDivider: { width: 1, height: 28, backgroundColor: '#1E293B' },
+    // Número grande de conteo en el resumen
+    resumenNum: { color: '#1A1A2E' /* Azul oscuro premium — número de conteo con alto contraste */, fontSize: 18, fontWeight: '900', marginTop: 1 },
+    // Divisor vertical entre items del resumen
+    resumenDivider: { width: 1, height: 28, backgroundColor: '#E8EDF2' /* Gris claro — línea vertical separadora limpia */ },
 
+    materiaActivaBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#EAF6FF',
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        marginBottom: 6,
+        borderWidth: 1,
+        borderColor: '#009EF740',
+    },
+    materiaActivaBannerText: {
+        color: '#1A1A2E',
+        fontSize: 12,
+        fontWeight: '600',
+    },
     // Selector de materia
     materiaSelectorContainer: { marginTop: 10, marginBottom: 2 },
-    materiaSelectorLabel: { color: '#475569', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 7 },
+    // Etiqueta "MATERIA" encima del selector de tabs
+    materiaSelectorLabel: { color: '#8A9BB0' /* Gris azulado secundario — etiqueta en mayúsculas */, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 7 },
     materiaSelectorRow: { flexDirection: 'row', gap: 8 },
-    materiaTab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 14, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B', position: 'relative' },
-    materiaTabActiva: { backgroundColor: '#38BDF8', borderColor: '#38BDF8' },
-    materiaTabCompleta: { borderColor: '#10B98150' },
-    materiaTabText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
-    materiaTabTextActiva: { color: '#020617' },
-    materiaTabDot: { position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: 4, backgroundColor: '#10B981' },
+    // Tab de materia inactivo
+    materiaTab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 14, backgroundColor: '#FFFFFF' /* Blanco puro */, borderWidth: 1, borderColor: '#E0E6ED' /* Gris sutil — borde inactivo */, position: 'relative' },
+    // Tab de materia activo (seleccionado)
+    materiaTabActiva: { backgroundColor: '#009EF7' /* Azul Movistar — resalta la pestaña seleccionada */, borderColor: '#009EF7' },
+    // Tab de materia con todos los registros completos (pero no activa)
+    materiaTabCompleta: { borderColor: '#00C85350' /* Verde brillante al 31% opacidad — indica completado de forma sutil */ },
+    // Texto de tab de materia inactivo
+    materiaTabText: { color: '#8A9BB0' /* Gris azulado — texto de materia inactiva */, fontSize: 13, fontWeight: '700' },
+    // Texto de tab de materia activo
+    materiaTabTextActiva: { color: '#FFFFFF' /* Blanco puro — contraste perfecto sobre el azul principal */, fontSize: 13, fontWeight: '700' },
+    // Punto indicador de registros en tab de materia
+    materiaTabDot: { position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: 4, backgroundColor: '#00C853' /* Verde brillante — registros incompletos */ },
 
-    materiaUnicaBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, marginBottom: 2, alignSelf: 'flex-start', backgroundColor: '#0F172A', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#1E293B' },
-    materiaUnicaText: { color: '#38BDF8', fontSize: 13, fontWeight: '700' },
+    // Badge de materia única (cuando solo hay una materia disponible)
+    materiaUnicaBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, marginBottom: 2, alignSelf: 'flex-start', backgroundColor: '#FFFFFF' /* Blanco puro */, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#E0E6ED' },
+    // Nombre de la materia en el badge único
+    materiaUnicaText: { color: '#009EF7' /* Azul Movistar — texto resaltado de la materia */, fontSize: 13, fontWeight: '700' },
 
-    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0F172A', borderRadius: 12, paddingHorizontal: 15, marginTop: 10, marginBottom: 4, height: 48, borderWidth: 1, borderColor: '#38BDF8' },
-    searchInput: { flex: 1, color: '#FFF', marginLeft: 10, fontSize: 15 },
+    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF' /* Blanco puro — fondo de barra de búsqueda */, borderRadius: 12, paddingHorizontal: 15, marginTop: 10, marginBottom: 4, height: 48, borderWidth: 1, borderColor: '#009EF7' /* Azul Movistar — siempre resaltado en la marca */ },
+    // Texto que escribe el usuario en la barra de búsqueda
+    searchInput: { flex: 1, color: '#1A1A2E' /* Azul oscuro premium — legibilidad al escribir */, marginLeft: 10, fontSize: 15 },
 
-    card: { backgroundColor: '#0F172A', borderRadius: 20, padding: 15, marginBottom: 12, borderLeftWidth: 6, borderLeftColor: '#1E293B' },
-    borderP: { borderLeftColor: '#10B981' },
-    borderA: { borderLeftColor: '#EF4444' },
-    borderR: { borderLeftColor: '#F59E0B' },
+    // Tarjeta de cada estudiante en la lista
+    card: { backgroundColor: '#FFFFFF' /* Blanco puro — tarjetas limpias estilo iOS/Android moderno */, borderRadius: 20, padding: 15, marginBottom: 12, borderLeftWidth: 6, borderLeftColor: '#E0E6ED' /* Gris sutil por defecto (sin estado marcado) */ },
+    // Bordes izquierdos actualizados según estados oficiales
+    borderP: { borderLeftColor: '#00C853' /* Verde brillante — Presente */ },
+    borderA: { borderLeftColor: '#FF3B30' /* Rojo vivo — Inasistente */ },
+    borderR: { borderLeftColor: '#FF9500' /* Naranja — Retirado */ },
     cardContent: { flexDirection: 'row', alignItems: 'center' },
     fotoCont: { marginRight: 15, position: 'relative' },
     foto: { width: 60, height: 60, borderRadius: 15 },
-    badge: { position: 'absolute', top: -8, left: -8, backgroundColor: '#38BDF8', width: 25, height: 25, borderRadius: 12.5, zIndex: 1, justifyContent: 'center', alignItems: 'center' },
-    badgeText: { color: '#020617', fontSize: 12, fontWeight: 'bold' },
-    nombre: { color: '#F8FAFC', fontSize: 20, fontWeight: 'bold' },
-    cedulaAdmin: { color: '#475569', fontSize: 13, fontWeight: '600', marginTop: 3 },
-    inputObs: { backgroundColor: '#1E293B', borderRadius: 8, padding: 8, color: '#F1F5F9', fontSize: 13, marginTop: 4 },
+    // Badge con el número de lista sobre la foto del estudiante
+    badge: { position: 'absolute', top: -8, left: -8, backgroundColor: '#009EF7' /* Azul Movistar — fondo del badge circular del número de lista */, width: 25, height: 25, borderRadius: 12.5, zIndex: 1, justifyContent: 'center', alignItems: 'center' },
+    // Número de lista dentro del badge circular
+    badgeText: { color: '#FFFFFF' /* Blanco puro — legibilidad óptima */, fontSize: 12, fontWeight: 'bold' },
+    // Nombre completo del estudiante en la tarjeta
+    nombre: { color: '#1A1A2E' /* Azul oscuro premium — nombre completo del alumno */, fontSize: 20, fontWeight: 'bold' },
+    // Cédula del estudiante (solo visible en modo admin)
+    cedulaAdmin: { color: '#8A9BB0' /* Gris azulado secundario — texto de la cédula para el administrador */, fontSize: 13, fontWeight: '600', marginTop: 3 },
+    // Campo de observaciones/notas en la tarjeta del estudiante
+    inputObs: { backgroundColor: '#F2F4F7' /* Gris claro suave — fondo del input de notas */, borderRadius: 8, padding: 8, color: '#1A1A2E' /* Azul oscuro premium — texto escrito */, fontSize: 13, marginTop: 4 },
     botones: { flexDirection: 'column', gap: 6, marginLeft: 15 },
     btn: { width: 45, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    btnTxt: { color: '#FFF', fontWeight: '900', fontSize: 16 },
-    bgOff: { backgroundColor: '#1E293B' },
-    bgP: { backgroundColor: '#10B981' },
-    bgA: { backgroundColor: '#EF4444' },
-    bgR: { backgroundColor: '#F59E0B' },
+    // Texto de los botones P / A / R
+    btnTxt: { color: '#FFFFFF' /* Blanco puro para estados activos */, fontWeight: '900', fontSize: 16 },
+    // Botón de asistencia sin marcar (estado off)
+    bgOff: { backgroundColor: '#F2F4F7' /* Gris claro suave — estado inactivo neutro */ },
+    // Botones activos usando los códigos de color correctos
+    bgP: { backgroundColor: '#00C853' /* Verde brillante — botón P activo */ },
+    bgA: { backgroundColor: '#FF3B30' /* Rojo vivo — botón A activo */ },
+    bgR: { backgroundColor: '#FF9500' /* Naranja — botón R activo */ },
 
-    claseGuardada: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0F172A', borderRadius: 14, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#1E293B', gap: 12 },
-    claseGuardadaIcono: { width: 36, height: 36, backgroundColor: '#1E293B', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    claseGuardadaLabel: { color: '#38BDF8', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
-    claseGuardadaTema: { color: '#F8FAFC', fontSize: 13, fontWeight: '700' },
-    claseBadge: { backgroundColor: '#1E293B', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: '#38BDF8' },
-    claseBadgeText: { color: '#38BDF8', fontSize: 11, fontWeight: '900' },
-    claseForm: { backgroundColor: '#0F172A', borderRadius: 14, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#1E293B', gap: 10 },
+    // Caja que muestra la clase ya guardada del día
+    claseGuardada: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF' /* Blanco puro */, borderRadius: 14, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#E0E6ED' /* Gris sutil */, gap: 12 },
+    // Ícono de libro en la caja de clase guardada
+    claseGuardadaIcono: { width: 36, height: 36, backgroundColor: '#EAF6FF' /* Azul suave de marca */, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    // Etiqueta "TEMA DE HOY" en la caja de clase guardada
+    claseGuardadaLabel: { color: '#009EF7' /* Azul Movistar — resalta la etiqueta de información */, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
+    // Texto del tema guardado en la caja de clase
+    claseGuardadaTema: { color: '#1A1A2E' /* Azul oscuro premium — texto del tema */, fontSize: 13, fontWeight: '700' },
+    // Badge con el número de clase en la caja de clase guardada
+    claseBadge: { backgroundColor: '#F2F4F7' /* Gris claro suave */, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: '#009EF7' /* Azul Movistar para el borde */ },
+    // Texto del número de clase en el badge
+    claseBadgeText: { color: '#009EF7' /* Azul Movistar — texto del número de clase */, fontSize: 11, fontWeight: '900' },
+    
+    // Formulario de registro de clase del día (cuando no hay clase guardada)
+    claseForm: { backgroundColor: '#FFFFFF' /* Blanco puro — contenedor del formulario de clase */, borderRadius: 14, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#E0E6ED', gap: 10 },
     claseFormHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between' },
-    claseFormTitulo: { color: '#38BDF8', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-    claseInput: { backgroundColor: '#020617', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, color: '#F8FAFC', fontSize: 14, borderWidth: 1, borderColor: '#1E293B' },
+    // Título "REGISTRAR CLASE DE HOY" del formulario
+    claseFormTitulo: { color: '#009EF7' /* Azul Movistar — encabezado del formulario */, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+    // Input de texto para escribir el tema de la clase
+    claseInput: { backgroundColor: '#F2F4F7' /* Gris claro suave — fondo del input de clase */, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, color: '#1A1A2E' /* Azul oscuro premium — texto escrito */, fontSize: 14, borderWidth: 1, borderColor: '#E0E6ED' },
     horasRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-    horaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#1E293B' },
-    horaBtnActivo: { backgroundColor: '#38BDF8', borderColor: '#38BDF8' },
-    horaBtnTxt: { color: '#64748B', fontSize: 13, fontWeight: '700' },
-    horaBtnTxtActivo: { color: '#020617' },
-    claseGuardarBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#38BDF8', paddingVertical: 11, borderRadius: 12 },
-    claseGuardarBtnTxt: { color: '#020617', fontWeight: '900', fontSize: 13 },
+    // Botón de selección de hora (inactivo)
+    horaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: '#F2F4F7' /* Gris claro suave */, borderWidth: 1, borderColor: '#E0E6ED' },
+    // Botón de selección de hora (activo/seleccionado)
+    horaBtnActivo: { backgroundColor: '#009EF7' /* Azul Movistar — resalta la hora seleccionada */, borderColor: '#009EF7' },
+    // Texto del botón de hora inactivo
+    horaBtnTxt: { color: '#8A9BB0' /* Gris azulado — texto de horas inactivas */, fontSize: 13, fontWeight: '700' },
+    // Texto del botón de hora activo
+    horaBtnTxtActivo: { color: '#FFFFFF' /* Blanco puro — excelente contraste sobre el azul principal */, fontSize: 13, fontWeight: '700' },
+    // Botón principal "GUARDAR CLASE"
+    claseGuardarBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#009EF7' /* Azul Movistar — botón principal de acción */, paddingVertical: 11, borderRadius: 12 },
+    // Texto "GUARDAR CLASE" del botón principal
+    claseGuardarBtnTxt: { color: '#FFFFFF' /* Blanco puro — contraste perfecto */, fontWeight: '900', fontSize: 13 },
 
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.85)', justifyContent: 'flex-end' },
-    modalCard: { backgroundColor: '#0F172A', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 28, paddingBottom: 45, maxHeight: '90%', borderTopWidth: 1, borderColor: '#1E293B' },
+    // Overlay oscuro semitransparente del modal de perfil (ajustado a la nueva armonía)
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(26, 26, 46, 0.4)' /* Capa oscura translúcida basada en el azul oscuro premium */, justifyContent: 'flex-end' },
+    // Card principal del modal de perfil del estudiante que sube desde abajo
+    modalCard: { backgroundColor: '#FFFFFF' /* Blanco puro — fondo impecable para la ficha del alumno */, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 28, paddingBottom: 45, maxHeight: '90%', borderTopWidth: 1, borderColor: '#E0E6ED' },
     modalTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    modalCloseBtn: { backgroundColor: '#1E293B', borderRadius: 20, padding: 6 },
-    modalEditToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1E293B', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-    modalEditToggleTxt: { color: '#38BDF8', fontSize: 13, fontWeight: '700' },
-    modalAvatar: { width: 90, height: 90, borderRadius: 25, borderWidth: 3, borderColor: '#38BDF8', marginBottom: 14 },
-    modalNombre: { fontSize: 22, fontWeight: '900', color: '#F8FAFC', textAlign: 'center', marginBottom: 8 },
-    modalMencionPill: { backgroundColor: '#1E293B', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#38BDF8', marginBottom: 18 },
-    modalMencionText: { color: '#38BDF8', fontSize: 12, fontWeight: '700' },
-    seccionTitulo: { color: '#64748B', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
-    modalInfoBox: { width: '100%', backgroundColor: '#020617', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#1E293B', marginBottom: 8 },
+    // Botón de cierre (X) del modal de perfil
+    modalCloseBtn: { backgroundColor: '#F2F4F7' /* Gris claro suave — botón neutro de cierre */, borderRadius: 20, padding: 6 },
+    // Botón "Editar" / "Cancelar" del modal de perfil
+    modalEditToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F2F4F7' /* Gris claro suave */, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+    // Texto del botón "Editar" del modal (color por defecto)
+    modalEditToggleTxt: { color: '#009EF7' /* Azul Movistar — cambia a '#FF3B30' (Rojo) dinámicamente en modo cancelar */, fontSize: 13, fontWeight: '700' },
+    // Avatar/foto del estudiante en el modal de perfil
+    modalAvatar: { width: 90, height: 90, borderRadius: 25, borderWidth: 3, borderColor: '#009EF7' /* Azul Movistar — borde de la foto de perfil */, marginBottom: 14 },
+    // Nombre del estudiante en el modal de perfil
+    modalNombre: { fontSize: 22, fontWeight: '900', color: '#1A1A2E' /* Azul oscuro premium — nombre del estudiante en grande */, textAlign: 'center', marginBottom: 8 },
+    // Pill/badge de mención del estudiante en el modal
+    modalMencionPill: { backgroundColor: '#EAF6FF' /* Azul suave de marca */, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#009EF7' /* Azul Movistar para el borde */, marginBottom: 18 },
+    // Texto de la mención dentro del pill
+    modalMencionText: { color: '#009EF7' /* Azul Movistar — texto de la mención */, fontSize: 12, fontWeight: '700' },
+    // Títulos de sección en el modal
+    seccionTitulo: { color: '#8A9BB0' /* Gris azulado secundario — títulos de sección limpios en mayúsculas */, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+    // Caja de información del estudiante/representante en el modal
+    modalInfoBox: { width: '100%', backgroundColor: '#F7F9FC' /* Gris/azul muy claro — fondo del bloque interno de datos */, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#E0E6ED', marginBottom: 8 },
     modalRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4 },
-    modalIconBox: { width: 34, height: 34, backgroundColor: '#1E293B', borderRadius: 9, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-    modalLabel: { color: '#64748B', fontSize: 11, fontWeight: '600', marginBottom: 2 },
-    modalValue: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-    modalEditInput: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', backgroundColor: '#1E293B', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, flex: 1 },
-    modalSep: { height: 1, backgroundColor: '#1E293B', marginVertical: 10 },
+    // Cuadro del ícono en cada fila de datos del modal
+    modalIconBox: { width: 34, height: 34, backgroundColor: '#EAF6FF' /* Azul suave de marca */, borderRadius: 9, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+    // Etiqueta del campo en el modal (ej: "Nombre", "Cédula")
+    modalLabel: { color: '#8A9BB0' /* Gris azulado secundario */, fontSize: 11, fontWeight: '600', marginBottom: 2 },
+    // Valor del campo en el modal (modo vista)
+    modalValue: { color: '#1A1A2E' /* Azul oscuro premium — datos de lectura del alumno */, fontSize: 15, fontWeight: '700' },
+    // Input de edición en el modal
+    modalEditInput: { color: '#1A1A2E' /* Azul oscuro premium */, fontSize: 15, fontWeight: '700', backgroundColor: '#FFFFFF' /* Blanco puro para diferenciar la edición */, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, flex: 1, borderWidth: 1, borderColor: '#E0E6ED' },
+    // Separador horizontal entre campos del modal
+    modalSep: { height: 1, backgroundColor: '#E8EDF2', marginVertical: 10 },
     modalEstadoBadge: { alignSelf: 'center', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginTop: 12, marginBottom: 8 },
+    // NOTA: modalEstadoBadge recibe fondos y bordes de alerta suave dinámicamente inline:
+    // Asistido → backgroundColor: '#00C85315', borderColor: '#00C853'
+    // Inasistente → backgroundColor: '#FF3B3015', borderColor: '#FF3B30'
+    // Retirado → backgroundColor: '#FF950015', borderColor: '#FF9500'
     modalEstadoText: { fontSize: 13, fontWeight: '800' },
-    guardarBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#38BDF8', padding: 18, borderRadius: 16, marginTop: 20 },
-    guardarBtnTxt: { color: '#020617', fontWeight: '900', fontSize: 15 },
+    // NOTA: modalEstadoText recibe el color del texto dinámico oficial (Verde/Rojo/Naranja)
+    // Botón "GUARDAR CAMBIOS" del modal de edición
+    guardarBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#009EF7' /* Azul Movistar — botón principal de guardado */, padding: 18, borderRadius: 16, marginTop: 20 },
+    // Texto "GUARDAR CAMBIOS" del botón del modal
+    guardarBtnTxt: { color: '#FFFFFF' /* Blanco puro — contraste impecable */, fontWeight: '900', fontSize: 15 },
 });
 
 const bloqueadoStyles = StyleSheet.create({
-    iconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B', justifyContent: 'center', alignItems: 'center', marginBottom: 28 },
-    titulo: { color: '#F8FAFC', fontSize: 26, fontWeight: '900', textAlign: 'center', marginBottom: 14 },
-    mensaje: { color: '#94A3B8', fontSize: 15, textAlign: 'center', lineHeight: 23, marginBottom: 20 },
-    infoBox: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: '#0F172A', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#1E293B', marginBottom: 32 },
-    infoText: { color: '#64748B', fontSize: 13, flex: 1, lineHeight: 19 },
-    btnVolver: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#38BDF8', paddingHorizontal: 28, paddingVertical: 15, borderRadius: 16 },
-    btnVolverTxt: { color: '#020617', fontWeight: '900', fontSize: 15 },
+    // Círculo del ícono en la pantalla de acceso bloqueado
+    iconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FFFFFF' /* Blanco puro */, borderWidth: 1, borderColor: '#FFE2E2' /* Borde rosa sutil de alerta */, justifyContent: 'center', alignItems: 'center', marginBottom: 28 },
+    // Título principal en pantalla de acceso bloqueado
+    titulo: { color: '#1A1A2E' /* Azul oscuro premium — título de alerta claro */, fontSize: 26, fontWeight: '900', textAlign: 'center', marginBottom: 14 },
+    // Mensaje descriptivo en pantalla de acceso bloqueado
+    mensaje: { color: '#8A9BB0' /* Gris azulado secundario — descripción legible */, fontSize: 15, textAlign: 'center', lineHeight: 23, marginBottom: 20 },
+    // Caja informativa con instrucciones en pantalla de bloqueo
+    infoBox: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: '#FFF5F5' /* Rosa muy claro de alerta — fondo de advertencia */, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#FFE2E2', marginBottom: 32 },
+    // Texto de instrucciones dentro de la caja informativa de bloqueo
+    infoText: { color: '#FF3B30' /* Rojo vivo Movistar — las instrucciones ahora se destacan en el color de alerta correcto */, fontSize: 13, flex: 1, lineHeight: 19, fontWeight: '600' },
+    // Botón "Volver al menú" en pantalla de acceso bloqueado
+    btnVolver: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#009EF7' /* Azul Movistar — acción de retorno principal */, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 16 },
+    // Texto "Volver al menú" del botón en pantalla de bloqueo
+    btnVolverTxt: { color: '#FFFFFF' /* Blanco puro — legibilidad total */, fontWeight: '900', fontSize: 15 },
 });
 
 const vistaFinalStyles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#020617' },
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#1E293B' },
-    backBtn: { width: 38, height: 38, backgroundColor: '#0F172A', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#1E293B' },
-    titulo: { fontSize: 20, fontWeight: '900', color: '#F8FAFC' },
-    subtitulo: { fontSize: 12, color: '#64748B', marginTop: 1 },
-    completadoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B98115', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: '#10B98140' },
-    completadoText: { color: '#10B981', fontSize: 11, fontWeight: '800' },
-    resumen: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginHorizontal: 16, marginVertical: 14, backgroundColor: '#0F172A', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#1E293B' },
+   // Fondo de toda la pantalla de vista final (modal de lista completa)
+    container: { 
+        flex: 1, 
+        backgroundColor: '#F7F9FC' /* Gris/azul muy claro — entorno de lectura limpio */ 
+    },
+    header: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 12, 
+        paddingHorizontal: 20, 
+        paddingTop: 60, 
+        paddingBottom: 16, 
+        borderBottomWidth: 1, 
+        borderBottomColor: '#E0E6ED' /* Gris sutil — línea inferior del encabezado */ 
+    },
+    // Botón de retroceso en el header de Vista Final
+    backBtn: { 
+        width: 38, 
+        height: 38, 
+        backgroundColor: '#FFFFFF' /* Blanco puro */, 
+        borderRadius: 12, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED' 
+    },
+    // Título "Lista Final" en el header de Vista Final
+    titulo: { 
+        fontSize: 20, 
+        fontWeight: '900', 
+        color: '#1A1A2E' /* Azul muy oscuro — Actualizado según especificación */ 
+    },
+    // Subtítulo (mención · año — materia) en el header de Vista Final
+    subtitulo: { 
+        fontSize: 12, 
+        color: '#8A9BB0' /* Gris azulado Movistar — Actualizado */, 
+        marginTop: 1 
+    },
+    // Badge "Completa" en el header de Vista Final
+    completadoBadge: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 4, 
+        backgroundColor: '#00C85315' /* Nuevo verde al 8% opacidad */, 
+        paddingHorizontal: 10, 
+        paddingVertical: 5, 
+        borderRadius: 10, 
+        borderWidth: 1, 
+        borderColor: '#00C85340' /* Nuevo verde al 25% opacidad */ 
+    },
+    // Texto "Completa" del badge en Vista Final
+    completadoText: { 
+        color: '#00C853' /* Verde estado Movistar — Actualizado */, 
+        fontSize: 11, 
+        fontWeight: '800' 
+    },
+    // Bloque de resumen numérico (Presentes / Inasistentes / Retirados)
+    resumen: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-around', 
+        alignItems: 'center', 
+        marginHorizontal: 16, 
+        marginVertical: 14, 
+        backgroundColor: '#FFFFFF' /* Blanco puro — Fondo actualizado */, 
+        borderRadius: 18, 
+        padding: 16, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED' /* Borde sutil para acoplar al diseño claro */ 
+    },
     resumenItem: { alignItems: 'center', flex: 1 },
     resumenNum: { fontSize: 28, fontWeight: '900' },
-    resumenLabel: { color: '#475569', fontSize: 11, fontWeight: '600', marginTop: 2 },
-    resumenDivider: { width: 1, height: 32, backgroundColor: '#1E293B' },
-    card: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0F172A', borderRadius: 16, padding: 14, marginBottom: 10, borderLeftWidth: 5, borderWidth: 1, borderColor: '#1E293B' },
+    // NOTA: Si usas colores inline dinámicos para los números del resumen, recuerda actualizarlos en el JSX:
+    // Presentes: '#00C853', Inasistentes: '#FF3B30', Retirados: '#FF9500'
+    
+    // Etiqueta debajo del número en el resumen de Vista Final
+    resumenLabel: { 
+        color: '#8A9BB0' /* Gris azulado de la paleta nueva — Actualizado */, 
+        fontSize: 11, 
+        fontWeight: '600', 
+        marginTop: 2 
+    },
+    // Divisor vertical entre items del resumen de Vista Final
+    resumenDivider: { 
+        width: 1, 
+        height: 32, 
+        backgroundColor: '#E8EDF2' /* Gris claro para el divisor en entornos claros */ 
+    },
+    // Tarjeta de cada estudiante en Vista Final
+    card: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        backgroundColor: '#FFFFFF' /* Blanco puro — Fondo actualizado */, 
+        borderRadius: 16, 
+        padding: 14, 
+        marginBottom: 10, 
+        borderLeftWidth: 5, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED' /* Borde perimetral claro — Actualizado */ 
+    },
+    // NOTA: borderLeftColor dinámico en JSX debe usar: '#00C853' (OK), '#FF3B30' (Riesgo/Inas) o '#FF9500' (Retiro)
     cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-    nroBadge: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#1E293B', justifyContent: 'center', alignItems: 'center' },
-    nroText: { color: '#38BDF8', fontSize: 13, fontWeight: '900' },
-    nombre: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
-    obs: { color: '#64748B', fontSize: 12, marginTop: 3, fontStyle: 'italic' },
+    // Badge con el número de lista en Vista Final
+    nroBadge: { 
+        width: 32, 
+        height: 32, 
+        borderRadius: 10, 
+        backgroundColor: '#F2F4F7' /* Fondo gris claro adaptado al entorno limpio */, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    // Número de lista dentro del badge en Vista Final
+    nroText: { 
+        color: '#009EF7' /* Azul Movistar — Actualizado */, 
+        fontSize: 13, 
+        fontWeight: '900' 
+    },
+    // Nombre del estudiante en Vista Final
+    nombre: { 
+        color: '#1A1A2E' /* Texto oscuro — Actualizado */, 
+        fontSize: 16, 
+        fontWeight: '700' 
+    },
+    // Observación/nota del estudiante en Vista Final
+    obs: { 
+        color: '#8A9BB0' /* Gris de apoyo Movistar — Actualizado */, 
+        fontSize: 12, 
+        marginTop: 3, 
+        fontStyle: 'italic' 
+    },
     estadoBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1 },
     estadoText: { fontSize: 12, fontWeight: '800' },
-    footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#020617', paddingHorizontal: 20, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#1E293B' },
-    editarBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#38BDF8', padding: 18, borderRadius: 18 },
-    editarBtnText: { color: '#020617', fontWeight: '900', fontSize: 16 },
+    
+    // Footer fijo en la parte inferior de Vista Final
+    footer: { 
+        position: 'absolute', 
+        bottom: 0, 
+        left: 0, 
+        right: 0, 
+        backgroundColor: '#F7F9FC' /* Gris/azul muy claro — Actualizado */, 
+        paddingHorizontal: 20, 
+        paddingTop: 14, 
+        borderTopWidth: 1, 
+        borderTopColor: '#E0E6ED' /* Línea superior clara — Actualizado */ 
+    },
+    // Botón "EDITAR ASISTENCIA" en el footer de Vista Final
+    editarBtn: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        gap: 10, 
+        backgroundColor: '#009EF7' /* Azul Movistar principal — Actualizado */, 
+        padding: 18, 
+        borderRadius: 18 
+    },
+    // Texto "EDITAR ASISTENCIA" del botón del footer
+    editarBtnText: { 
+        color: '#FFFFFF' /* Blanco puro para alto contraste — Actualizado */, 
+        fontWeight: '900', 
+        fontSize: 16 
+    },
 });

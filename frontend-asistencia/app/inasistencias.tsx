@@ -20,7 +20,8 @@ interface RegistroAusencia {
     nro_lista: number;
     mencion: string;
     ano: number;
-    estado: 'Inasistente' | 'Retirado';
+    estado: string;           // descripción de texto (puede variar según la BD)
+    estado_codigo: 'P' | 'A' | 'R'; // código confiable: P=Presente, A=Inasistente, R=Retirado
     observaciones: string | null;
     fecha: string;
     materia: string;
@@ -36,6 +37,10 @@ interface ResumenEstudiante {
     totalInasistencias: number;
     totalRetirados: number;
     registros: RegistroAusencia[];
+    // Datos del representante (pueden venir del acumulado o buscarse por cédula)
+    rep_telefono?: string;
+    rep_nombre?: string;
+    rep_apellido?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -52,8 +57,9 @@ const coloresMencion: Record<string, string> = {
 
 // ─── Función para enviar WhatsApp ─────────────────────────────────────────────
 /**
- * Busca el teléfono del representante por cédula del estudiante
- * y abre WhatsApp con un mensaje predeterminado según la situación.
+ * Envía notificación por WhatsApp al representante.
+ * Primero intenta usar los datos del representante ya disponibles (rep_telefono, rep_nombre).
+ * Si no están, los busca en la API usando la cédula del estudiante.
  */
 const enviarWhatsApp = async (
     cedula: string | undefined,
@@ -62,26 +68,51 @@ const enviarWhatsApp = async (
     items: { estado: string; materia: string; observaciones: string | null; fecha: string }[],
     modo: 'dia' | 'acumulado',
     totalInasistencias?: number,
-    totalRetirados?: number
+    totalRetirados?: number,
+    repTelefonoDirecto?: string,
+    repNombreDirecto?: string
 ) => {
-    if (!cedula) {
-        Alert.alert('Sin cédula', 'No se pudo obtener la cédula del estudiante para buscar al representante.');
-        return;
-    }
+    let telefono: string | null = repTelefonoDirecto ?? null;
+    let repNombre = repNombreDirecto ?? 'Representante';
 
-    let telefono: string | null = null;
-    let repNombre = 'Representante';
-
-    try {
-        const res = await axios.get(`${API_URL}/admin/estudiantes/${cedula}`);
-        if (res.data.success && res.data.estudiante) {
-            const est = res.data.estudiante;
-            telefono = est.rep_telefono ?? null;
-            repNombre = est.rep_nombre ? `${est.rep_nombre} ${est.rep_apellido ?? ''}`.trim() : 'Representante';
+    // Si ya tenemos el teléfono directo, no hace falta llamar a la API
+    if (!telefono) {
+        if (!cedula) {
+            // Fallback: intentar buscar el estudiante por nombre y apellido
+            try {
+                const resBusqueda = await axios.get(`${API_URL}/estudiantes`);
+                const lista: any[] = resBusqueda.data ?? [];
+                const encontrado = lista.find(
+                    (e: any) =>
+                        (e.nombre ?? '').toLowerCase() === nombreEstudiante.toLowerCase() &&
+                        (e.apellido ?? '').toLowerCase() === apellidoEstudiante.toLowerCase()
+                );
+                if (encontrado) {
+                    telefono = encontrado.rep_telefono ?? null;
+                    repNombre = encontrado.rep_nombre
+                        ? `${encontrado.rep_nombre} ${encontrado.rep_apellido ?? ''}`.trim()
+                        : 'Representante';
+                }
+            } catch {
+                // Si falla el fallback, continúa y mostrará el alert de sin teléfono
+            }
+            if (!telefono) {
+                Alert.alert('Sin cédula', 'No se pudo obtener la cédula del estudiante para buscar al representante.');
+                return;
+            }
+        } else {
+            try {
+                const res = await axios.get(`${API_URL}/admin/estudiantes/${cedula}`);
+                if (res.data.success && res.data.estudiante) {
+                    const est = res.data.estudiante;
+                    telefono = est.rep_telefono ?? null;
+                    repNombre = est.rep_nombre ? `${est.rep_nombre} ${est.rep_apellido ?? ''}`.trim() : 'Representante';
+                }
+            } catch (e) {
+                Alert.alert('Error', 'No se pudo obtener los datos del representante.');
+                return;
+            }
         }
-    } catch (e) {
-        Alert.alert('Error', 'No se pudo obtener los datos del representante.');
-        return;
     }
 
     if (!telefono) {
@@ -89,12 +120,20 @@ const enviarWhatsApp = async (
         return;
     }
 
-    // Limpiar teléfono: quitar espacios, guiones, paréntesis y agregar código de Venezuela si es necesario
-    let telefonoLimpio = telefono.replace(/[\s\-().]/g, '');
-    if (!telefonoLimpio.startsWith('+')) {
-        // Asumir Venezuela +58, quitar el 0 inicial si existe
-        if (telefonoLimpio.startsWith('0')) telefonoLimpio = telefonoLimpio.substring(1);
-        telefonoLimpio = `58${telefonoLimpio}`;
+    // Normalizar teléfono para WhatsApp Venezuela: quitar todo excepto dígitos,
+    // luego asegurar que empiece con 58 (sin duplicar)
+    let telefonoLimpio = telefono.replace(/\D/g, ''); // solo dígitos
+    if (telefonoLimpio.startsWith('58')) {
+        // ya tiene código de país, usar tal cual
+    } else if (telefonoLimpio.startsWith('0')) {
+        // formato local venezolano (ej. 0412...) → quitar 0 y agregar 58
+        telefonoLimpio = '58' + telefonoLimpio.substring(1);
+    } else if (telefonoLimpio.length >= 10) {
+        // número sin prefijo ni cero → agregar 58
+        telefonoLimpio = '58' + telefonoLimpio;
+    } else {
+        Alert.alert('Teléfono inválido', `El número "${telefono}" no tiene el formato esperado.`);
+        return;
     }
 
     let mensaje = '';
@@ -116,9 +155,9 @@ const enviarWhatsApp = async (
             : 'hoy';
 
         const detalles = items.map(reg => {
-            if (reg.estado === 'Inasistente') {
+            if (reg.estado === 'A' || reg.estado === 'Inasistente') {
                 return `• *No asistió* a la clase de *${reg.materia}*${reg.observaciones ? `\n  📝 ${reg.observaciones}` : ''}`;
-            } else if (reg.estado === 'Retirado') {
+            } else if (reg.estado === 'R' || reg.estado === 'Retirado') {
                 return `• Se *retiró anticipadamente* de la clase de *${reg.materia}*${reg.observaciones ? `\n  📝 ${reg.observaciones}` : ''}`;
             }
             return '';
@@ -185,7 +224,7 @@ export default function InasistenciasScreen() {
 
             const res = await axios.get(`${API_URL}/historial`, { params });
             const ausentes = (res.data as RegistroAusencia[]).filter(
-                r => r.estado === 'Inasistente' || r.estado === 'Retirado'
+                r => r.estado_codigo === 'A' || r.estado_codigo === 'R'
             );
             setRegistrosDia(ausentes);
         } catch (e) {
@@ -292,8 +331,8 @@ export default function InasistenciasScreen() {
     const colorMencion = (m: string) => coloresMencion[m] ?? '#64748B';
 
     const renderCardDia = ({ item }: { item: ReturnType<typeof registrosAgrupados>[0] }) => {
-        const esInasistente = item.items.some(i => i.estado === 'Inasistente');
-        const esRetirado = item.items.some(i => i.estado === 'Retirado');
+        const esInasistente = item.items.some(i => i.estado_codigo === 'A');
+        const esRetirado = item.items.some(i => i.estado_codigo === 'R');
         const borderColor = esInasistente ? '#EF4444' : '#F59E0B';
         const color = colorMencion(item.mencion);
         const waKey = `${item.mencion}-${item.ano}-${item.nombre}-${item.apellido}`;
@@ -306,7 +345,7 @@ export default function InasistenciasScreen() {
                 item.nombre,
                 item.apellido,
                 item.items.map(r => ({
-                    estado: r.estado,
+                    estado: r.estado_codigo, // usar codigo confiable: 'A' | 'R'
                     materia: r.materia,
                     observaciones: r.observaciones,
                     fecha: r.fecha,
@@ -407,7 +446,9 @@ export default function InasistenciasScreen() {
                 })),
                 'acumulado',
                 item.totalInasistencias,
-                item.totalRetirados
+                item.totalRetirados,
+                item.rep_telefono,
+                item.rep_nombre ? `${item.rep_nombre} ${item.rep_apellido ?? ''}`.trim() : undefined
             );
             setEnviandoWA(null);
         };
@@ -710,138 +751,526 @@ export default function InasistenciasScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#020617', paddingHorizontal: 20 },
-
-    header: { marginTop: 60, flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 14 },
-    backBtn: { padding: 10, backgroundColor: '#0F172A', borderRadius: 12 },
-    titulo: { fontSize: 24, fontWeight: '900', color: '#F8FAFC' },
-    subtitulo: { fontSize: 12, color: '#64748B', marginTop: 2 },
-
-    // Tabs
-    tabsRow: { flexDirection: 'row', backgroundColor: '#0F172A', borderRadius: 14, padding: 4, marginBottom: 14, borderWidth: 1, borderColor: '#1E293B' },
-    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10 },
-    tabActivo: { backgroundColor: '#38BDF8' },
-    tabTxt: { color: '#64748B', fontSize: 13, fontWeight: '700' },
-    tabTxtActivo: { color: '#020617' },
-
-    // Selector de fecha
-    dateSelector: {
-        flexDirection: 'row', backgroundColor: '#0F172A', padding: 12,
-        borderRadius: 12, alignItems: 'center', justifyContent: 'space-between',
-        borderWidth: 1, borderColor: '#1E293B', marginBottom: 14,
+    // Fondo principal de toda la pantalla — Gris/azul muy claro (entorno claro de lectura)
+    container: { 
+        flex: 1, 
+        backgroundColor: '#F7F9FC', 
+        paddingHorizontal: 20 
     },
-    dateText: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
+
+    header: { 
+        marginTop: 60, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        marginBottom: 20, 
+        gap: 14 
+    },
+    // Fondo del botón de retroceso (flecha ←) en el header — Azul muy claro Movistar
+    backBtn: { 
+        padding: 10, 
+        backgroundColor: '#EAF6FF', 
+        borderRadius: 12 
+    },
+    // Color del texto del título principal "Inasistencias" — Azul muy oscuro de alta densidad
+    titulo: { 
+        fontSize: 24, 
+        fontWeight: '900', 
+        color: '#1A1A2E' 
+    },
+    // Color del subtítulo debajo del título — Gris de apoyo Movistar
+    subtitulo: { 
+        fontSize: 12, 
+        color: '#8A9BB0', 
+        marginTop: 2 
+    },
+
+    // Tabs (Selector de modo "Por Día" / "Acumulado")
+    // Fondo del contenedor de los tabs — Blanco puro con borde gris sutil
+    tabsRow: { 
+        flexDirection: 'row', 
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 14, 
+        padding: 4, 
+        marginBottom: 14, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED' 
+    },
+    tab: { 
+        flex: 1, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        gap: 6, 
+        paddingVertical: 10, 
+        borderRadius: 10 
+    },
+    // Fondo del tab activo seleccionado — Azul Movistar principal
+    tabActivo: { 
+        backgroundColor: '#009EF7' 
+    },
+    // Texto de los tabs inactivos — Gris de apoyo Movistar
+    tabTxt: { 
+        color: '#8A9BB0', 
+        fontSize: 13, 
+        fontWeight: '700' 
+    },
+    // Texto del tab activo — Blanco puro (alto contraste sobre el fondo azul)
+    tabTxtActivo: { 
+        color: '#FFFFFF' 
+    },
+
+    // Selector de fecha (Botón con el calendario)
+    // Fondo del selector de fecha — Blanco puro con borde gris sutil
+    dateSelector: {
+        flexDirection: 'row', 
+        backgroundColor: '#FFFFFF', 
+        padding: 12,
+        borderRadius: 12, 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        borderWidth: 1, 
+        borderColor: '#E0E6ED', 
+        marginBottom: 14,
+    },
+    // Color del texto de la fecha mostrada en el selector — Azul muy oscuro
+    dateText: { 
+        color: '#1A1A2E', 
+        fontSize: 15, 
+        fontWeight: '700' 
+    },
 
     // Filtros
-    filtroLabel: { color: '#475569', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 6, marginLeft: 2 },
-    filtroScroll: { marginBottom: 12, height: 40, flexGrow: 0, flexShrink: 0 },
-    filtroBtn: { height: 34, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#0F172A', marginRight: 8, borderWidth: 1, borderColor: '#1E293B', justifyContent: 'center', alignItems: 'center' },
-    filtroBtnActivo: { backgroundColor: '#38BDF8', borderColor: '#38BDF8' },
-    filtroBtnAnoActivo: { backgroundColor: '#818CF8', borderColor: '#818CF8' },
-    filtroBtnTxt: { color: '#64748B', fontSize: 12, fontWeight: '700' },
-    filtroBtnTxtActivo: { color: '#020617' },
-
-    // Resumen rápido
-    resumenRow: { flexDirection: 'row', backgroundColor: '#0F172A', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#1E293B', marginBottom: 14, justifyContent: 'space-around' },
-    resumenBox: { alignItems: 'center' },
-    resumenNum: { fontSize: 22, fontWeight: '900' },
-    resumenLabel: { color: '#475569', fontSize: 10, fontWeight: '700', marginTop: 2 },
-    resumenDivider: { width: 1, backgroundColor: '#1E293B' },
-
-    // Cards
-    card: {
-        backgroundColor: '#0F172A', borderRadius: 18, padding: 16,
-        marginBottom: 14, borderLeftWidth: 5, borderWidth: 1, borderColor: '#1E293B',
+    // Color de las etiquetas "AÑO" y "MENCIÓN" sobre los filtros — Gris de apoyo Movistar
+    filtroLabel: { 
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '800', 
+        letterSpacing: 1.5, 
+        marginBottom: 6, 
+        marginLeft: 2 
     },
-    cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
-    numBadge: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-    numBadgeTxt: { fontSize: 14, fontWeight: '900' },
-    cardNombre: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', marginBottom: 4 },
-    cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    mencionPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
-    mencionPillTxt: { fontSize: 10, fontWeight: '800' },
-    cardAno: { color: '#475569', fontSize: 11, fontWeight: '600' },
-    estadoBadges: { gap: 4, alignItems: 'flex-end' },
-    estadoPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
-    estadoPillTxt: { fontSize: 10, fontWeight: '800' },
+    filtroScroll: { 
+        marginBottom: 12, 
+        height: 40, 
+        flexGrow: 0, 
+        flexShrink: 0 
+    },
+    // Fondo de cada botón de filtro inactivo — Gris suave neutro con borde sutil
+    filtroBtn: { 
+        height: 34, 
+        paddingHorizontal: 14, 
+        borderRadius: 20, 
+        backgroundColor: '#F2F4F7', 
+        marginRight: 8, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED', 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    // Fondo y borde del botón de filtro de MENCIÓN activo — Azul Movistar principal
+    filtroBtnActivo: { 
+        backgroundColor: '#009EF7', 
+        borderColor: '#009EF7' 
+    },
+    // Fondo y borde del botón de filtro de AÑO activo — Azul Movistar principal (Unificado)
+    filtroBtnAnoActivo: { 
+        backgroundColor: '#009EF7', 
+        borderColor: '#009EF7' 
+    },
+    // Texto de los botones de filtro inactivos — Gris de apoyo Movistar
+    filtroBtnTxt: { 
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontWeight: '700' 
+    },
+    // Texto de los botones de filtro activos — Blanco puro
+    filtroBtnTxtActivo: { 
+        color: '#FFFFFF' 
+    },
 
-    // Detalle por materia (modo día)
-    detalleRow: { marginBottom: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1E293B' },
-    detalleMateriaBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 },
-    detalleMateriaText: { color: '#475569', fontSize: 11, fontWeight: '700' },
-    obsBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#1E293B', padding: 8, borderRadius: 8 },
-    obsText: { color: '#94A3B8', fontSize: 12, fontStyle: 'italic', flex: 1 },
-    sinObs: { color: '#334155', fontSize: 11, fontStyle: 'italic' },
+    // Resumen rápido superior
+    // Fondo de la fila de resumen rápido — Blanco puro con borde gris sutil
+    resumenRow: { 
+        flexDirection: 'row', 
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 14, 
+        padding: 12, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED', 
+        marginBottom: 14, 
+        justifyContent: 'space-around' 
+    },
+    resumenBox: { 
+        alignItems: 'center' 
+    },
+    // Nota JSX: resumenNum recibe colores inline: '#FF3B30' (Rojo Alerta), '#FF9500' (Ámbar), y '#1A1A2E' (Oscuro para el Total)
+    resumenNum: { 
+        fontSize: 22, 
+        fontWeight: '900' 
+    },
+    // Etiquetas del resumen — Gris de apoyo Movistar
+    resumenLabel: { 
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '700', 
+        marginTop: 2 
+    },
+    // Línea divisora vertical entre las cajas del resumen — Gris sutil de estructura
+    resumenDivider: { 
+        width: 1, 
+        backgroundColor: '#E0E6ED' 
+    },
 
-    // Contadores (modo acumulado)
-    contadoresRow: { flexDirection: 'row', backgroundColor: '#020617', borderRadius: 12, padding: 12, marginBottom: 12, justifyContent: 'space-around', borderWidth: 1, borderColor: '#1E293B' },
-    contadorBox: { alignItems: 'center' },
-    contadorNum: { fontSize: 24, fontWeight: '900' },
-    contadorLabel: { color: '#475569', fontSize: 10, fontWeight: '700', marginTop: 2 },
-    contadorDivider: { width: 1, backgroundColor: '#1E293B' },
+    // Cards de alumnos con incidencias
+    // Fondo de cada card de estudiante — Blanco puro con borde gris sutil
+    // Nota JSX: borderLeftColor se aplica inline: '#FF3B30' (Rojo Alerta) o '#FF9500' (Ámbar) según estado
+    card: {
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 18, 
+        padding: 16,
+        marginBottom: 14, 
+        borderLeftWidth: 5, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED',
+    },
+    cardTop: { 
+        flexDirection: 'row', 
+        alignItems: 'flex-start', 
+        gap: 12, 
+        marginBottom: 12 
+    },
+    // Nota JSX: numBadge recibe colores claros inline: backgroundColor: '#FF3B301A' o '#FF95001A', borderColor: '#FF3B30' o '#FF9500'
+    numBadge: { 
+        width: 36, 
+        height: 36, 
+        borderRadius: 10, 
+        borderWidth: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    numBadgeTxt: { 
+        fontSize: 14, 
+        fontWeight: '900' 
+    },
+    // Color del nombre del estudiante en la card — Azul muy oscuro
+    cardNombre: { 
+        color: '#1A1A2E', 
+        fontSize: 16, 
+        fontWeight: '800', 
+        marginBottom: 4 
+    },
+    cardMeta: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 8 
+    },
+    // Nota JSX: mencionPill recibe borderColor inline según especialidad mapeada con tonos Movistar claros
+    mencionPill: { 
+        paddingHorizontal: 8, 
+        paddingVertical: 2, 
+        borderRadius: 8, 
+        borderWidth: 1,
+        backgroundColor: '#FFFFFF'
+    },
+    mencionPillTxt: { 
+        fontSize: 10, 
+        fontWeight: '800' 
+    },
+    // Color del texto del año en la card — Gris de apoyo Movistar
+    cardAno: { 
+        color: '#8A9BB0', 
+        fontSize: 11, 
+        fontWeight: '600' 
+    },
+    estadoBadges: { 
+        gap: 4, 
+        alignItems: 'flex-end' 
+    },
+    // Nota JSX: estadoPill recibe colores inline claros (ej: fondo '#FF3B301A', borde '#FF3B30' para inasistencias)
+    estadoPill: { 
+        paddingHorizontal: 8, 
+        paddingVertical: 3, 
+        borderRadius: 8, 
+        borderWidth: 1 
+    },
+    estadoPillTxt: { 
+        fontSize: 10, 
+        fontWeight: '800' 
+    },
 
-    // Observaciones acumuladas
-    obsAcumContainer: { backgroundColor: '#020617', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#1E293B' },
-    obsAcumTitulo: { color: '#475569', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 10 },
-    obsAcumRow: { marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#1E293B' },
-    obsAcumFecha: { color: '#38BDF8', fontSize: 11, fontWeight: '700', marginBottom: 4 },
-    obsAcumTexto: { color: '#94A3B8', fontSize: 12, fontStyle: 'italic' },
+    // Detalle por materia (Modo día)
+    // Borde superior del separador entre materias — Gris sutil de estructura
+    detalleRow: { 
+        marginBottom: 8, 
+        paddingTop: 8, 
+        borderTopWidth: 1, 
+        borderTopColor: '#E0E6ED' 
+    },
+    detalleMateriaBadge: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 5, 
+        marginBottom: 5 
+    },
+    // Color del texto de la materia — Gris de apoyo Movistar
+    detalleMateriaText: { 
+        color: '#8A9BB0', 
+        fontSize: 11, 
+        fontWeight: '700' 
+    },
+    // Fondo del recuadro de observaciones en modo día — Gris suave neutro
+    obsBox: { 
+        flexDirection: 'row', 
+        alignItems: 'flex-start', 
+        gap: 6, 
+        backgroundColor: '#F2F4F7', 
+        padding: 8, 
+        borderRadius: 8 
+    },
+    // Color del texto de observaciones — Gris de apoyo Movistar
+    obsText: { 
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontStyle: 'italic', 
+        flex: 1 
+    },
+    // Color del texto "Sin observaciones" — Gris de apoyo Movistar desvanecido
+    sinObs: { 
+        color: '#8A9BB0', 
+        fontSize: 11, 
+        fontStyle: 'italic' 
+    },
 
-    // Empty state
-    emptyContainer: { alignItems: 'center', marginTop: 60, gap: 10 },
-    emptyTitulo: { color: '#10B981', fontSize: 18, fontWeight: '900' },
-    emptyTexto: { color: '#475569', fontSize: 14, textAlign: 'center' },
+    // Contadores (Modo acumulado)
+    // Fondo del panel de contadores dentro de la card acumulada — Gris suave de lectura con borde sutil
+    contadoresRow: { 
+        flexDirection: 'row', 
+        backgroundColor: '#F2F4F7', 
+        borderRadius: 12, 
+        padding: 12, 
+        marginBottom: 12, 
+        justifyContent: 'space-around', 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED' 
+    },
+    contadorBox: { 
+        alignItems: 'center' 
+    },
+    // Nota JSX: contadorNum recibe color inline: '#FF3B30' (Inasistencias), '#FF9500' (Retirados) o '#1A1A2E' (Total neutro)
+    contadorNum: { 
+        fontSize: 24, 
+        fontWeight: '900' 
+    },
+    // Etiquetas de los contadores — Gris de apoyo Movistar
+    contadorLabel: { 
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '700', 
+        marginTop: 2 
+    },
+    // Línea divisora vertical entre los contadores — Gris sutil de estructura
+    contadorDivider: { 
+        width: 1, 
+        backgroundColor: '#E0E6ED' 
+    },
 
-    // ── WhatsApp ──
+    // Observaciones acumuladas (Historial extendido)
+    // Fondo del bloque de observaciones acumuladas — Gris suave de lectura con borde sutil
+    obsAcumContainer: { 
+        backgroundColor: '#F2F4F7', 
+        borderRadius: 12, 
+        padding: 12, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED' 
+    },
+    // Color de la etiqueta de la sección de acumulados — Gris de apoyo Movistar
+    obsAcumTitulo: { 
+        color: '#8A9BB0', 
+        fontSize: 9, 
+        fontWeight: '800', 
+        letterSpacing: 1.5, 
+        marginBottom: 10 
+    },
+    // Borde inferior de cada fila de observación acumulada — Gris sutil de estructura
+    obsAcumRow: { 
+        marginBottom: 10, 
+        paddingBottom: 10, 
+        borderBottomWidth: 1, 
+        borderBottomColor: '#E0E6ED' 
+    },
+    // Color de la fecha en cada observación acumulada — Azul Movistar principal
+    obsAcumFecha: { 
+        color: '#009EF7', 
+        fontSize: 11, 
+        fontWeight: '700', 
+        marginBottom: 4 
+    },
+    // Color del texto de la observación acumulada — Gris de apoyo Movistar
+    obsAcumTexto: { 
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontStyle: 'italic' 
+    },
+
+    // Empty state (Pantalla vacía sin reportes)
+    emptyContainer: { 
+        alignItems: 'center', 
+        marginTop: 60, 
+        gap: 10 
+    },
+    // Color del título "¡Sin ausencias!" — Verde Movistar de éxito limpio
+    emptyTitulo: { 
+        color: '#00C853', 
+        fontSize: 18, 
+        fontWeight: '900' 
+    },
+    // Color del texto descriptivo del estado vacío — Gris de apoyo Movistar
+    emptyTexto: { 
+        color: '#8A9BB0', 
+        fontSize: 14, 
+        textAlign: 'center' 
+    },
+
+    // ── Notificación vía WhatsApp ──
+    // Fondo del botón "Notificar al representante" — Verde oficial WhatsApp estandarizado
     waBtn: {
         marginTop: 14,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: '#128C7E',
+        backgroundColor: '#25D366',
         paddingVertical: 12,
         borderRadius: 12,
     },
+    // Fondo del botón de WhatsApp mientras está procesando
     waBtnCargando: {
-        backgroundColor: '#0F6B63',
+        backgroundColor: '#1EBE57',
         opacity: 0.8,
     },
+    // Texto del botón de WhatsApp — Blanco puro para alto contraste
     waBtnText: {
-        color: '#FFF',
+        color: '#FFFFFF',
         fontSize: 13,
         fontWeight: '800',
     },
 
-    // ── Modal de perfil ──
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.85)', justifyContent: 'flex-end' },
+    // ── Modal inferior de Perfil de Alumno ──
+    // Fondo del overlay semitransparente — Oscurecido ligero balanceado para entorno claro
+    modalOverlay: { 
+        flex: 1, 
+        backgroundColor: 'rgba(26, 26, 46, 0.45)', 
+        justifyContent: 'flex-end' 
+    },
+    // Fondo del panel inferior del modal — Blanco puro con borde superior sutil
     modalCard: {
-        backgroundColor: '#0F172A', borderTopLeftRadius: 30, borderTopRightRadius: 30,
-        padding: 28, paddingBottom: 45, maxHeight: '90%', borderTopWidth: 1, borderColor: '#1E293B',
+        backgroundColor: '#FFFFFF', 
+        borderTopLeftRadius: 30, 
+        borderTopRightRadius: 30,
+        padding: 28, 
+        paddingBottom: 45, 
+        maxHeight: '90%', 
+        borderTopWidth: 1, 
+        borderColor: '#E0E6ED',
     },
-    modalTopBar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 },
-    modalCloseBtn: { backgroundColor: '#1E293B', borderRadius: 20, padding: 6 },
-    modalAvatar: { width: 90, height: 90, borderRadius: 25, borderWidth: 3, borderColor: '#38BDF8', marginBottom: 14 },
-    modalNombre: { fontSize: 22, fontWeight: '900', color: '#F8FAFC', textAlign: 'center', marginBottom: 8 },
+    modalTopBar: { 
+        flexDirection: 'row', 
+        justifyContent: 'flex-end', 
+        alignItems: 'center', 
+        marginBottom: 16 
+    },
+    // Fondo del botón de cierre "✕" del modal — Gris suave neutro
+    modalCloseBtn: { 
+        backgroundColor: '#F2F4F7', 
+        borderRadius: 20, 
+        padding: 6 
+    },
+    // Borde del avatar circular del estudiante en el modal — Azul Movistar principal
+    modalAvatar: { 
+        width: 90, 
+        height: 90, 
+        borderRadius: 25, 
+        borderWidth: 3, 
+        borderColor: '#009EF7', 
+        marginBottom: 14 
+    },
+    // Color del nombre del estudiante en el modal — Azul muy oscuro
+    modalNombre: { 
+        fontSize: 22, 
+        fontWeight: '900', 
+        color: '#1A1A2E', 
+        textAlign: 'center', 
+        marginBottom: 8 
+    },
+    // Fondo de la pastilla de mención en el modal — Gris sutil con borde Azul Movistar
     modalMencionPill: {
-        backgroundColor: '#0F172A', paddingHorizontal: 14, paddingVertical: 5,
-        borderRadius: 20, borderWidth: 1, borderColor: '#38BDF8', marginBottom: 18,
+        backgroundColor: '#F2F4F7', 
+        paddingHorizontal: 14, 
+        paddingVertical: 5,
+        borderRadius: 20, 
+        borderWidth: 1, 
+        borderColor: '#009EF7', 
+        marginBottom: 18,
     },
-    modalMencionText: { color: '#38BDF8', fontSize: 12, fontWeight: '700' },
+    // Color del texto de la mención en la pastilla del modal — Azul Movistar principal
+    modalMencionText: { 
+        color: '#009EF7', 
+        fontSize: 12, 
+        fontWeight: '700' 
+    },
+    // Color de los títulos de sección dentro del modal — Gris de apoyo Movistar
     modalSeccionTitulo: {
-        color: '#64748B', fontSize: 10, fontWeight: '800', letterSpacing: 1.5,
-        textTransform: 'uppercase', marginBottom: 8, marginLeft: 4,
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '800', 
+        letterSpacing: 1.5,
+        textTransform: 'uppercase', 
+        marginBottom: 8, 
+        marginLeft: 4,
     },
+    // Fondo del recuadro de datos en el modal — Blanco puro con borde sutil estructurado
     modalInfoBox: {
-        width: '100%', backgroundColor: '#020617', borderRadius: 18,
-        padding: 16, borderWidth: 1, borderColor: '#1E293B', marginBottom: 8,
+        width: '100%', 
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 18,
+        padding: 16, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED', 
+        marginBottom: 8,
     },
-    modalRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4 },
+    modalRow: { 
+        flexDirection: 'row', 
+        alignItems: 'flex-start', 
+        gap: 12, 
+        paddingVertical: 4 
+    },
+    // Fondo del cuadro del ícono en cada fila del modal — Gris suave neutro
     modalIconBox: {
-        width: 34, height: 34, backgroundColor: '#1E293B', borderRadius: 9,
-        justifyContent: 'center', alignItems: 'center', marginTop: 2,
+        width: 34, 
+        height: 34, 
+        backgroundColor: '#F2F4F7', 
+        borderRadius: 9,
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        marginTop: 2,
     },
-    modalLabel: { color: '#64748B', fontSize: 11, fontWeight: '600', marginBottom: 2 },
-    modalValue: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-    modalSep: { height: 1, backgroundColor: '#1E293B', marginVertical: 10 },
+    // Color de la etiqueta del campo en el modal — Gris de apoyo Movistar
+    modalLabel: { 
+        color: '#8A9BB0', 
+        fontSize: 11, 
+        fontWeight: '600', 
+        marginBottom: 2 
+    },
+    // Color del valor del campo en el modal — Azul muy oscuro
+    modalValue: { 
+        color: '#1A1A2E', 
+        fontSize: 15, 
+        fontWeight: '700' 
+    },
+    // Color del separador horizontal entre filas del modal — Gris sutil de estructura
+    modalSep: { 
+        height: 1, 
+        backgroundColor: '#E0E6ED', 
+        marginVertical: 10 
+    },
 });

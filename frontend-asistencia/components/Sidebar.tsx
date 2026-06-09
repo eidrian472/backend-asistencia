@@ -265,21 +265,23 @@ export function MenuButton({ onPress }: { onPress: () => void }) {
 }
 
 const menuBtnStyles = StyleSheet.create({
+    // Botón de hamburguesa para abrir el menú
     btn: {
         width: 40,
         height: 40,
-        backgroundColor: '#0F172A',
+        backgroundColor: '#F2F4F7', // Fondo gris neutro suave
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 4,
         borderWidth: 1,
-        borderColor: '#1E293B',
+        borderColor: '#E0E6ED', // Borde sutil estructurado
     },
+    // Líneas del ícono de hamburguesa
     line: {
         width: 18,
         height: 2,
-        backgroundColor: '#38BDF8',
+        backgroundColor: '#009EF7', // Azul oficial Movistar
         borderRadius: 2,
     },
 });
@@ -288,47 +290,54 @@ const styles = StyleSheet.create({
     root: {
         flex: 1,
     },
+    // Capa oscura de fondo al abrir el menú lateral
     overlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.65)',
+        backgroundColor: 'rgba(0, 0, 0, 0.4)', // Sombra de fondo ligeramente más suave para entornos claros
     },
+    // Contenedor principal del Sidebar
     sidebar: {
         position: 'absolute',
         left: 0,
         top: 0,
         bottom: 0,
         width: SIDEBAR_WIDTH,
-        backgroundColor: '#0A111F',
+        backgroundColor: '#FFFFFF', // Fondo blanco puro premium
         borderRightWidth: 1,
-        borderRightColor: '#1E293B',
+        borderRightColor: '#E0E6ED', // Borde lateral sutil
         paddingHorizontal: 18,
-        shadowColor: '#000',
-        shadowOffset: { width: 8, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-        elevation: 20,
+        shadowColor: '#1A1A2E', // Sombra basada en la nueva paleta oscura
+        shadowOffset: { width: 4, height: 0 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 10,
     },
     sidebarHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
         marginBottom: 16,
+        marginTop: 50, // Margen superior añadido para salvar el notch/status bar de forma limpia
     },
+    // Caja contenedora del logo (E.T. J.R.G.S)
     logoBox: {
         width: 40,
         height: 40,
-        backgroundColor: '#38BDF8',
+        backgroundColor: '#EAF6FF', // Azul claro traslúcido de marca
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#009EF7', // Borde en azul insignia
     },
     logoText: {
-        color: '#F8FAFC',
+        color: '#009EF7', // Texto del logo en azul Movistar
         fontSize: 14,
         fontWeight: '900',
     },
+    // Texto del rol (ej: "Administrador" o "Docente")
     rolText: {
-        color: '#64748B',
+        color: '#8A9BB0', // Gris de apoyo Movistar
         fontSize: 11,
         fontWeight: '600',
         marginTop: 1,
@@ -339,47 +348,50 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    // Ficha contenedora de los datos rápidos del usuario conectado
     userBox: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        backgroundColor: '#0F172A',
+        backgroundColor: '#F2F4F7', // Fondo gris neutro de lectura
         borderRadius: 12,
         padding: 12,
         marginBottom: 14,
         borderWidth: 1,
-        borderColor: '#1E293B',
+        borderColor: '#E0E6ED',
     },
     avatarSmall: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#38BDF822',
+        backgroundColor: '#EAF6FF', 
         borderWidth: 1,
-        borderColor: '#38BDF8',
+        borderColor: '#009EF7',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarLetter: {
-        color: '#38BDF8',
+        color: '#009EF7',
         fontSize: 14,
         fontWeight: '900',
     },
     usuarioText: {
-        color: '#94A3B8',
+        color: '#1A1A2E', // Texto del nombre en azul oscuro de alta densidad
         fontSize: 13,
         fontWeight: '600',
         flex: 1,
     },
+    // Separadores horizontales del menú
     divider: {
         height: 1,
-        backgroundColor: '#1E293B',
+        backgroundColor: '#E8EDF2', // Borde suave de división
         marginVertical: 10,
     },
     navList: {
         gap: 4,
         paddingVertical: 4,
     },
+    // Elemento base de la lista de navegación
     navItem: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -395,28 +407,33 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    // Nombre de la sección del menú
     navLabel: {
-        color: '#F1F5F9',
+        color: '#1A1A2E', // Texto oscuro para lectura perfecta
         fontSize: 15,
         fontWeight: '700',
     },
+    // Descripción corta debajo del nombre de la sección
     navSub: {
-        color: '#475569',
+        color: '#8A9BB0', // Gris de apoyo Movistar
         fontSize: 11,
         fontWeight: '500',
         marginTop: 1,
     },
+    // Botón de salida
     logoutBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         padding: 14,
         borderRadius: 12,
-        backgroundColor: '#EF444412',
+        backgroundColor: '#FFF5F5', // Rojo traslúcido suave de advertencia
         marginTop: 6,
+        borderWidth: 1,
+        borderColor: '#FECACA',
     },
     logoutText: {
-        color: '#EF4444',
+        color: '#FF3B30', // Rojo de estado vibrante de la marca
         fontWeight: '700',
         fontSize: 14,
     },

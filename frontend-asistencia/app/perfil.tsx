@@ -13,6 +13,8 @@ export default function PerfilScreen() {
     const [docente, setDocente] = useState<any>(null);
     const [cargando, setCargando] = useState(true);
 
+    const [avatarError, setAvatarError] = useState(false);
+
     useEffect(() => {
         if (usuario) obtenerDatos();
         else setCargando(false);
@@ -29,18 +31,20 @@ export default function PerfilScreen() {
         }
     };
 
-    if (cargando) return (
-        <View style={styles.loading}>
-            <ActivityIndicator size="large" color="#5A9FDE" />
-        </View>
-    );
+    if (cargando) {
+        return (
+            <View style={styles.loading}>
+                <ActivityIndicator size="large" color="#009EF7" />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.headerNav}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="chevron-back" size={26} color="#5A9FDE" />
+                <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={20} color="#5A9FDE" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Mi Perfil</Text>
                 <View style={{ width: 40 }} />
@@ -51,16 +55,27 @@ export default function PerfilScreen() {
                 {/* Avatar + Nombre */}
                 <View style={styles.avatarSection}>
                     <View style={styles.avatarWrapper}>
-                        <Image
-                            source={{ uri: `https://ui-avatars.com/api/?name=${docente?.nombre || 'U'}+${docente?.apellido || ''}&background=5B9BD5&color=ffffff&bold=true&size=200` }}
-                            style={styles.avatar}
-                        />
-                        {/* Badge de rol: dorado */}
-                        <View style={styles.rolBadge}>
+                        {avatarError ? (
+                            <View style={[styles.avatar, styles.avatarFallback]}>
+                                <Text style={styles.avatarInitials}>
+                                    {(docente?.nombre?.[0] ?? 'U').toUpperCase()}{(docente?.apellido?.[0] ?? '').toUpperCase()}
+                                </Text>
+                            </View>
+                        ) : (
+                            <Image
+                                source={{ uri: `https://ui-avatars.com/api/?name=${docente?.nombre || 'U'}+${docente?.apellido || ''}&background=5B9BD5&color=ffffff&bold=true&size=200` }}
+                                style={styles.avatar}
+                                onError={() => setAvatarError(true)}
+                            />
+                        )}
+                        <View style={[
+                            styles.rolBadge,
+                            { backgroundColor: rol === 'admin' ? '#FF9500' : '#009EF7' }
+                        ]}>
                             <Ionicons
                                 name={rol === 'admin' ? 'shield-checkmark' : 'school'}
                                 size={14}
-                                color="#6B4000"
+                                color="#FFFFFF"
                             />
                         </View>
                     </View>
@@ -76,9 +91,17 @@ export default function PerfilScreen() {
                             {docente?.nacionalidad === 'V' ? 'Venezolano/a' : docente?.nacionalidad === 'E' ? 'Extranjero/a' : ''}
                         </Text>
                     </View>
-                    <View style={styles.rolPill}>
-                        <Text style={styles.rolPillText}>
-                            {rol === 'admin' ? 'Administrador del Sistema' : 'Docente de Aula'}
+                    <View style={[
+                        styles.rolPill,
+                        rol === 'admin'
+                            ? { backgroundColor: '#FF950015', borderColor: '#FF950040' }
+                            : { backgroundColor: '#009EF715', borderColor: '#009EF740' }
+                    ]}>
+                        <Text style={[
+                            styles.rolPillText,
+                            { color: rol === 'admin' ? '#FF9500' : '#009EF7' }
+                        ]}>
+                            {rol === 'admin' ? '🛡️ Administrador del Sistema' : '🎓 Docente de Aula'}
                         </Text>
                     </View>
                 </View>
@@ -139,19 +162,16 @@ export default function PerfilScreen() {
 }
 
 const styles = StyleSheet.create({
-    // ── Fondo base azul claro
     container: {
         flex: 1,
-        backgroundColor: '#E4EFFF',
+        backgroundColor: '#F7F9FC',
     },
     loading: {
         flex: 1,
-        backgroundColor: '#E4EFFF',
+        backgroundColor: '#F7F9FC',
         justifyContent: 'center',
         alignItems: 'center',
     },
-
-    // Header
     headerNav: {
         marginTop: 55,
         flexDirection: 'row',
@@ -168,15 +188,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#99C4EF',
+        borderColor: '#E0E6ED',
     },
     headerTitle: {
         fontSize: 18,
         fontWeight: '900',
-        color: '#0D2340',
+        color: '#1A1A2E',
     },
-
-    // Avatar
     scroll: {
         alignItems: 'center',
         paddingHorizontal: 20,
@@ -196,14 +214,23 @@ const styles = StyleSheet.create({
         height: 100,
         borderRadius: 50,
         borderWidth: 3,
-        borderColor: '#5B9BD5',
+        borderColor: '#009EF7',
     },
-    // Badge dorado
+    avatarFallback: {
+        backgroundColor: '#009EF7',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarInitials: {
+        color: '#FFFFFF',
+        fontSize: 32,
+        fontWeight: '900',
+    },
     rolBadge: {
         position: 'absolute',
         bottom: 0,
         right: 0,
-        backgroundColor: '#F5A800',
+        backgroundColor: '#FF9500',
         width: 28,
         height: 28,
         borderRadius: 14,
@@ -215,12 +242,12 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 24,
         fontWeight: '900',
-        color: '#0D2340',
+        color: '#1A1A2E',
         marginBottom: 4,
     },
     userHandle: {
         fontSize: 14,
-        color: '#5A80A8',
+        color: '#8A9BB0',
         marginBottom: 8,
     },
     nacionalidadRow: {
@@ -231,36 +258,33 @@ const styles = StyleSheet.create({
     },
     nacionalidadFlag: { fontSize: 16 },
     nacionalidadText: {
-        color: '#5A80A8',
+        color: '#8A9BB0',
         fontSize: 13,
         fontWeight: '600',
     },
-    // Pill del rol: borde dorado
     rolPill: {
-        backgroundColor: '#FFF0C2',
+        backgroundColor: '#FF950015',
         paddingHorizontal: 16,
         paddingVertical: 6,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#F5A800',
+        borderColor: '#FF950040',
     },
     rolPillText: {
-        color: '#C47F00',
+        color: '#FF9500',
         fontSize: 12,
         fontWeight: '700',
     },
-
-    // Info Card
     infoCard: {
         width: '100%',
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 20,
         borderWidth: 1,
-        borderColor: '#99C4EF',
+        borderColor: '#E0E6ED',
     },
     infoCardTitle: {
-        color: '#5A80A8',
+        color: '#8A9BB0',
         fontSize: 11,
         fontWeight: '700',
         textTransform: 'uppercase',
@@ -276,49 +300,47 @@ const styles = StyleSheet.create({
     infoIconBox: {
         width: 38,
         height: 38,
-        backgroundColor: '#E4EFFF',
+        backgroundColor: '#EAF6FF',
         borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
     },
     infoLabel: {
-        color: '#5A80A8',
+        color: '#8A9BB0',
         fontSize: 11,
         fontWeight: '600',
         marginBottom: 2,
     },
     infoValue: {
-        color: '#0D2340',
+        color: '#1A1A2E',
         fontSize: 15,
         fontWeight: '700',
     },
     separator: {
         height: 1,
-        backgroundColor: '#C8DFFF',
+        backgroundColor: '#E8EDF2',
         marginVertical: 14,
     },
-
-    // Footer
     footer: {
         borderTopWidth: 1,
-        borderTopColor: '#99C4EF',
+        borderTopColor: '#E0E6ED',
         paddingTop: 15,
         paddingHorizontal: 20,
-        backgroundColor: '#E4EFFF',
+        backgroundColor: '#F7F9FC',
     },
     logoutBtn: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         gap: 8,
-        backgroundColor: '#FFF5F5',
+        backgroundColor: '#FF3B3010',
         padding: 16,
         borderRadius: 15,
         borderWidth: 1,
-        borderColor: '#FECACA',
+        borderColor: '#FF3B3035',
     },
     logoutText: {
-        color: '#EF4444',
+        color: '#FF3B30',
         fontWeight: 'bold',
         fontSize: 16,
     },

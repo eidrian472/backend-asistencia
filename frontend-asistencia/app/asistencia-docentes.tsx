@@ -23,7 +23,7 @@ type EstadoDocente = 'Presente' | 'Ausente' | 'Tardanza';
 
 interface RegistroDocente {
     estado: EstadoDocente | null;
-    bloque_clase: number | null;   // 1‑4, cuál clase dictó (pase de salida)
+    bloque_clase: number | null;
     observaciones: string;
 }
 
@@ -36,6 +36,7 @@ export default function AsistenciaDocentesScreen() {
     const [cargando, setCargando] = useState(true);
     const [registros, setRegistros] = useState<Record<number, RegistroDocente>>({});
     const [guardando, setGuardando] = useState<Record<number, boolean>>({});
+    const [guardadoExitoso, setGuardadoExitoso] = useState<Record<number, boolean>>({});
 
     const hoy = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -47,7 +48,6 @@ export default function AsistenciaDocentesScreen() {
         try {
             const res = await axios.get(`${API_URL}/admin/docentes`);
             setDocentes(res.data);
-            // Intentar cargar registros de hoy si ya existen
             const resHoy = await axios.get(`${API_URL}/asistencia-docentes/hoy`);
             const mapa: Record<number, RegistroDocente> = {};
             resHoy.data.forEach((r: any) => {
@@ -104,8 +104,11 @@ export default function AsistenciaDocentesScreen() {
                 bloque_clase: reg.bloque_clase ?? null,
                 observaciones: reg.observaciones || null,
             });
-            if (Platform.OS === 'android') ToastAndroid.show('Guardado ✓', ToastAndroid.SHORT);
-            else Alert.alert('✅ Guardado', 'Asistencia registrada correctamente.');
+            // Feedback unificado: check verde 2 segundos (no interrumpe el flujo)
+            setGuardadoExitoso(prev => ({ ...prev, [docenteId]: true }));
+            setTimeout(() => {
+                setGuardadoExitoso(prev => ({ ...prev, [docenteId]: false }));
+            }, 2000);
         } catch (e) {
             Alert.alert('Error', 'No se pudo guardar. Verifica la conexión.');
         } finally {
@@ -113,10 +116,11 @@ export default function AsistenciaDocentesScreen() {
         }
     };
 
+    // Colores de estado aplicados dinámicamente en el render (badge, borde izquierdo del card, botón activo)
     const colorEstado: Record<EstadoDocente, string> = {
-        Presente: '#10B981',
-        Ausente: '#EF4444',
-        Tardanza: '#F59E0B',
+        Presente: '#10B981', // Verde esmeralda — estado "Presente": borde izquierdo del card, badge de estado, botón P activo
+        Ausente: '#EF4444',  // Rojo — estado "Ausente": borde izquierdo del card, badge de estado, botón A activo
+        Tardanza: '#F59E0B', // Ámbar — estado "Tardanza": borde izquierdo del card, badge de estado, botón T activo
     };
 
     const renderDocente = ({ item }: { item: any }) => {
@@ -124,6 +128,7 @@ export default function AsistenciaDocentesScreen() {
         const estado = reg?.estado ?? null;
         const bloque = reg?.bloque_clase ?? null;
 
+        // borderColor dinámico: verde/rojo/ámbar según estado; gris oscuro si sin marcar
         const borderColor = estado ? colorEstado[estado] : '#1E293B';
 
         return (
@@ -140,6 +145,7 @@ export default function AsistenciaDocentesScreen() {
                         <Text style={styles.materiaDocente}>{item.materia || 'Sin materia asignada'}</Text>
                     </View>
                     {estado && (
+                        // backgroundColor y borderColor dinámicos: verde/rojo/ámbar con opacidad 13% (sufijo '22' en hex)
                         <View style={[styles.estadoBadge, { backgroundColor: colorEstado[estado] + '22', borderColor: colorEstado[estado] }]}>
                             <Text style={[styles.estadoBadgeTxt, { color: colorEstado[estado] }]}>{estado}</Text>
                         </View>
@@ -155,11 +161,17 @@ export default function AsistenciaDocentesScreen() {
                             style={[
                                 styles.btnEstado,
                                 estado === e
+                                    // Activo: fondo y borde toman el color del estado (verde/rojo/ámbar)
                                     ? { backgroundColor: colorEstado[e], borderColor: colorEstado[e] }
+                                    // Inactivo: usa btnEstadoOff → fondo y borde gris oscuro #1E293B
                                     : styles.btnEstadoOff,
                             ]}
                         >
-                            <Text style={[styles.btnEstadoTxt, estado === e && { color: '#020617' }]}>
+                            <Text style={[
+                                styles.btnEstadoTxt,
+                                // Activo: texto azul marino oscuro #020617 (contraste sobre el color del estado)
+                                estado === e && { color: '#020617' }
+                            ]}>
                                 {e === 'Presente' ? 'Presente' : e === 'Ausente' ? 'Ausente' : 'Tardanza'}
                             </Text>
                         </TouchableOpacity>
@@ -175,13 +187,22 @@ export default function AsistenciaDocentesScreen() {
                             onPress={() => setBloque(item.id, b.id)}
                             style={[
                                 styles.bloqueBtn,
+                                // Activo: aplica bloqueBtnActivo → fondo violeta con 13% opacidad + borde violeta #818CF8
                                 bloque === b.id && styles.bloqueBtnActivo,
                             ]}
                         >
-                            <Text style={[styles.bloqueBtnLabel, bloque === b.id && styles.bloqueBtnLabelActivo]}>
+                            <Text style={[
+                                styles.bloqueBtnLabel,
+                                // Activo: texto violeta #818CF8; inactivo: gris slate #64748B
+                                bloque === b.id && styles.bloqueBtnLabelActivo
+                            ]}>
                                 {b.label}
                             </Text>
-                            <Text style={[styles.bloqueBtnHoras, bloque === b.id && styles.bloqueBtnHorasActivo]}>
+                            <Text style={[
+                                styles.bloqueBtnHoras,
+                                // Activo: texto violeta #818CF8; inactivo: gris oscuro #334155
+                                bloque === b.id && styles.bloqueBtnHorasActivo
+                            ]}>
                                 {b.horas}
                             </Text>
                         </TouchableOpacity>
@@ -192,7 +213,7 @@ export default function AsistenciaDocentesScreen() {
                 <TextInput
                     style={styles.inputObs}
                     placeholder="Observaciones (opcional)..."
-                    placeholderTextColor="#475569"
+                    placeholderTextColor="#475569" // Gris slate medio — texto placeholder del campo de observaciones
                     value={reg?.observaciones ?? ''}
                     onChangeText={t => setObs(item.id, t)}
                     multiline
@@ -200,13 +221,21 @@ export default function AsistenciaDocentesScreen() {
 
                 {/* Botón guardar */}
                 <TouchableOpacity
-                    style={[styles.btnGuardar, (!estado || guardando[item.id]) && { opacity: 0.5 }]}
+                    style={[
+                        styles.btnGuardar,
+                        (!estado || guardando[item.id]) && { opacity: 0.5 },
+                        guardadoExitoso[item.id] && { backgroundColor: '#10B981' },
+                    ]}
                     onPress={() => guardarRegistro(item.id)}
                     disabled={!estado || guardando[item.id]}
                 >
-                    <Ionicons name="save-outline" size={18} color="#020617" />
-                    <Text style={styles.btnGuardarTxt}>
-                        {guardando[item.id] ? 'GUARDANDO...' : 'GUARDAR'}
+                    <Ionicons
+                        name={guardadoExitoso[item.id] ? 'checkmark-circle' : 'save-outline'}
+                        size={18}
+                        color={guardadoExitoso[item.id] ? '#FFFFFF' : '#020617'}
+                    />
+                    <Text style={[styles.btnGuardarTxt, guardadoExitoso[item.id] && { color: '#FFFFFF' }]}>
+                        {guardando[item.id] ? 'GUARDANDO...' : guardadoExitoso[item.id] ? 'GUARDADO ✓' : 'GUARDAR'}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -223,7 +252,7 @@ export default function AsistenciaDocentesScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#38BDF8" />
+                    <Ionicons name="arrow-back" size={24} color="#38BDF8" /> {/* Celeste sky — ícono flecha volver en el header */}
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.titulo}>Asistencia Docentes</Text>
@@ -234,7 +263,8 @@ export default function AsistenciaDocentesScreen() {
             {/* Horario de referencia */}
             <View style={styles.horarioCard}>
                 <Text style={styles.horarioTitulo}>
-                    <Ionicons name="time-outline" size={13} color="#38BDF8" /> BLOQUES DEL DÍA
+                    <Ionicons name="time-outline" size={13} color="#38BDF8" /> {/* Celeste sky — ícono reloj en el título de bloques */}
+                    BLOQUES DEL DÍA
                 </Text>
                 <View style={styles.horarioGrid}>
                     {BLOQUES.map(b => (
@@ -246,7 +276,7 @@ export default function AsistenciaDocentesScreen() {
                     ))}
                 </View>
                 <View style={styles.recesoRow}>
-                    <Ionicons name="cafe-outline" size={13} color="#F59E0B" />
+                    <Ionicons name="cafe-outline" size={13} color="#F59E0B" /> {/* Ámbar — ícono café del receso */}
                     <Text style={styles.recesoTxt}>{RECESO.label}: {RECESO.horas}</Text>
                 </View>
             </View>
@@ -254,25 +284,25 @@ export default function AsistenciaDocentesScreen() {
             {/* Resumen */}
             <View style={styles.resumen}>
                 <View style={styles.resumenItem}>
-                    <Text style={[styles.resumenNum, { color: '#10B981' }]}>{totalPresentes}</Text>
+                    <Text style={[styles.resumenNum, { color: '#10B981' }]}>{totalPresentes}</Text> {/* Verde esmeralda — número de docentes presentes en el resumen */}
                     <Text style={styles.resumenLabel}>Presentes</Text>
                 </View>
                 <View style={styles.resumenItem}>
-                    <Text style={[styles.resumenNum, { color: '#EF4444' }]}>{totalAusentes}</Text>
+                    <Text style={[styles.resumenNum, { color: '#EF4444' }]}>{totalAusentes}</Text> {/* Rojo — número de docentes ausentes en el resumen */}
                     <Text style={styles.resumenLabel}>Ausentes</Text>
                 </View>
                 <View style={styles.resumenItem}>
-                    <Text style={[styles.resumenNum, { color: '#F59E0B' }]}>{totalTardanza}</Text>
+                    <Text style={[styles.resumenNum, { color: '#F59E0B' }]}>{totalTardanza}</Text> {/* Ámbar — número de docentes con tardanza en el resumen */}
                     <Text style={styles.resumenLabel}>Tardanza</Text>
                 </View>
                 <View style={styles.resumenItem}>
-                    <Text style={[styles.resumenNum, { color: '#64748B' }]}>{docentes.length - totalPresentes - totalAusentes - totalTardanza}</Text>
+                    <Text style={[styles.resumenNum, { color: '#64748B' }]}>{docentes.length - totalPresentes - totalAusentes - totalTardanza}</Text> {/* Gris slate — número de docentes sin marcar en el resumen */}
                     <Text style={styles.resumenLabel}>Sin marcar</Text>
                 </View>
             </View>
 
             {cargando ? (
-                <ActivityIndicator size="large" color="#38BDF8" style={{ marginTop: 50 }} />
+                <ActivityIndicator size="large" color="#38BDF8" style={{ marginTop: 50 }} /> // Celeste sky — spinner de carga mientras se obtienen los docentes
             ) : (
                 <FlatList
                     data={docentes}
@@ -286,98 +316,300 @@ export default function AsistenciaDocentesScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#020617', paddingHorizontal: 20 },
+    // ─── Pantalla base ───────────────────────────────────────────────────────
+    // Fondo principal — Gris/azul muy claro oficial (Línea Mi Movistar)
+    container: {
+        flex: 1,
+        backgroundColor: '#F7F9FC', 
+        paddingHorizontal: 20,
+    },
 
+    // ─── Header ──────────────────────────────────────────────────────────────
     header: {
-        marginTop: 60, flexDirection: 'row', alignItems: 'center',
-        marginBottom: 16, gap: 14,
+        marginTop: 60, 
+        flexDirection: 'row', 
+        alignItems: 'center',
+        marginBottom: 16, 
+        gap: 14,
     },
-    backBtn: { padding: 10, backgroundColor: '#0F172A', borderRadius: 12 },
-    titulo: { fontSize: 24, fontWeight: '900', color: '#F8FAFC' },
-    subtitulo: { fontSize: 12, color: '#64748B', marginTop: 2, textTransform: 'capitalize' },
+    // Fondo del botón de retroceso — Gris sutil suave
+    backBtn: {
+        padding: 10,
+        backgroundColor: '#F2F4F7', 
+        borderRadius: 12,
+    },
+    // Título "Asistencia Docentes" — Azul muy oscuro para máximo contraste
+    titulo: {
+        fontSize: 24, 
+        fontWeight: '900',
+        color: '#1A1A2E', 
+    },
+    // Subtítulo de la fecha — Gris de apoyo Movistar
+    subtitulo: {
+        fontSize: 12,
+        color: '#8A9BB0', 
+        marginTop: 2, 
+        textTransform: 'capitalize',
+    },
 
-    // Horario de referencia
+    // ─── Tarjeta de horario de referencia ────────────────────────────────────
+    // Fondo blanco puro con borde gris suave estructurado
     horarioCard: {
-        backgroundColor: '#0F172A', borderRadius: 16, padding: 14,
-        borderWidth: 1, borderColor: '#1E293B', marginBottom: 14,
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 16, 
+        padding: 14,
+        borderWidth: 1,
+        borderColor: '#E0E6ED', 
+        marginBottom: 14,
     },
-    horarioTitulo: { color: '#38BDF8', fontSize: 10, fontWeight: '800', letterSpacing: 1.2, marginBottom: 10 },
-    horarioGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-    horarioBloque: { alignItems: 'center', flex: 1 },
-    horarioBloqueLabel: { color: '#F8FAFC', fontSize: 11, fontWeight: '800', marginBottom: 3 },
-    horarioBloqueH1: { color: '#64748B', fontSize: 10, fontWeight: '600' },
-    horarioBloqueH2: { color: '#64748B', fontSize: 10, fontWeight: '600' },
-    recesoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-    recesoTxt: { color: '#F59E0B', fontSize: 11, fontWeight: '700' },
+    // Encabezado "BLOQUES DEL DÍA" — Azul Movistar destacado en mayúsculas
+    horarioTitulo: {
+        color: '#009EF7', 
+        fontSize: 10, 
+        fontWeight: '800', 
+        letterSpacing: 1.2, 
+        marginBottom: 10,
+    },
+    horarioGrid: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        marginBottom: 8 
+    },
+    horarioBloque: { 
+        alignItems: 'center', 
+        flex: 1 
+    },
+    // Nombre del bloque ("1ra Clase"...) — Azul muy oscuro
+    horarioBloqueLabel: {
+        color: '#1A1A2E', 
+        fontSize: 11, 
+        fontWeight: '800', 
+        marginBottom: 3,
+    },
+    // Horas de los bloques — Gris de apoyo Movistar
+    horarioBloqueH1: {
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '600',
+    },
+    horarioBloqueH2: {
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '600',
+    },
+    recesoRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 6, 
+        marginTop: 2 
+    },
+    // Texto del receso — Ámbar oficial de la marca
+    recesoTxt: {
+        color: '#FF9500', 
+        fontSize: 11, 
+        fontWeight: '700',
+    },
 
-    // Resumen
+    // ─── Barra de resumen superior ───────────────────────────────────────────
+    // Fondo blanco puro con divisiones sutiles
     resumen: {
-        flexDirection: 'row', backgroundColor: '#0F172A', borderRadius: 14,
-        padding: 12, borderWidth: 1, borderColor: '#1E293B',
-        marginBottom: 16, justifyContent: 'space-around',
+        flexDirection: 'row',
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 14, 
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#E0E6ED', 
+        marginBottom: 16, 
+        justifyContent: 'space-around',
     },
-    resumenItem: { alignItems: 'center' },
-    resumenNum: { fontSize: 22, fontWeight: '900' },
-    resumenLabel: { color: '#475569', fontSize: 10, fontWeight: '700', marginTop: 2 },
+    resumenItem: { 
+        alignItems: 'center' 
+    },
+    // Nota JSX: resumenNum mantiene la lógica inline reemplazando por: #00C853 | #FF3B30 | #FF9500 | #8A9BB0
+    resumenNum: {
+        fontSize: 22, 
+        fontWeight: '900',
+    },
+    // Etiquetas de conteos ("Presentes"...) — Gris de apoyo Movistar
+    resumenLabel: {
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '700', 
+        marginTop: 2,
+    },
 
-    // Card docente
+    // ─── Card de cada docente ─────────────────────────────────────────────────
+    // Fondo blanco puro con borde lateral dinámico
     card: {
-        backgroundColor: '#0F172A', borderRadius: 20, padding: 18,
-        marginBottom: 16, borderLeftWidth: 5, borderWidth: 1, borderColor: '#1E293B',
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 20, 
+        padding: 18, 
+        marginBottom: 16,
+        borderLeftWidth: 5,
+        borderWidth: 1,
+        borderColor: '#E0E6ED', 
     },
-    cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+    cardTop: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 12, 
+        marginBottom: 16 
+    },
+    // Círculo contenedor de iniciales — Gris suave neutro
     avatarCircle: {
-        width: 48, height: 48, borderRadius: 24,
-        backgroundColor: '#1E293B', justifyContent: 'center', alignItems: 'center',
+        width: 48, 
+        height: 48, 
+        borderRadius: 24,
+        backgroundColor: '#F2F4F7', 
+        justifyContent: 'center', 
+        alignItems: 'center',
     },
-    avatarTxt: { color: '#38BDF8', fontSize: 16, fontWeight: '900' },
-    nombreDocente: { color: '#F8FAFC', fontSize: 17, fontWeight: '800' },
-    materiaDocente: { color: '#475569', fontSize: 12, fontWeight: '600', marginTop: 2 },
+    // Iniciales del docente — Azul Movistar principal
+    avatarTxt: {
+        color: '#009EF7', 
+        fontSize: 16, 
+        fontWeight: '900',
+    },
+    // Nombre del docente — Azul muy oscuro
+    nombreDocente: {
+        color: '#1A1A2E', 
+        fontSize: 17, 
+        fontWeight: '800',
+    },
+    // Asignatura dictada — Gris de apoyo Movistar
+    materiaDocente: {
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontWeight: '600', 
+        marginTop: 2,
+    },
+    // Badge de estado actual en la cabecera del card
     estadoBadge: {
-        paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1,
+        paddingHorizontal: 10, 
+        paddingVertical: 4, 
+        borderRadius: 20, 
+        borderWidth: 1,
     },
-    estadoBadgeTxt: { fontSize: 11, fontWeight: '900' },
+    estadoBadgeTxt: {
+        fontSize: 11, 
+        fontWeight: '900',
+    },
 
-    // Botones P/A/T
-    botonesEstado: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+    // ─── Botones de selección de estado ──────────────────────────────────────
+    botonesEstado: { 
+        flexDirection: 'row', 
+        gap: 8, 
+        marginBottom: 16 
+    },
     btnEstado: {
-        flex: 1, height: 40, borderRadius: 12, justifyContent: 'center',
-        alignItems: 'center', borderWidth: 1,
+        flex: 1, 
+        height: 40, 
+        borderRadius: 12, 
+        justifyContent: 'center',
+        alignItems: 'center', 
+        borderWidth: 1,
     },
-    btnEstadoOff: { backgroundColor: '#1E293B', borderColor: '#1E293B' },
-    btnEstadoTxt: { color: '#64748B', fontSize: 12, fontWeight: '800' },
+    // Botón de estado deseleccionado — Gris suave neutro con borde limpio
+    btnEstadoOff: {
+        backgroundColor: '#F2F4F7', 
+        borderColor: '#E0E6ED', 
+    },
+    // Texto de botón deseleccionado — Gris de apoyo Movistar
+    // Nota JSX: Al activarse, sobrescribir inline con color: '#FFFFFF' (Blanco puro para contrastar)
+    btnEstadoTxt: {
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontWeight: '800',
+    },
 
-    // Bloques de pase de salida
+    // ─── Botones de pase de salida (Bloques horarios) ────────────────────────
+    // Etiqueta de la sección — Gris de apoyo Movistar
     secLabel: {
-        color: '#475569', fontSize: 10, fontWeight: '800',
-        letterSpacing: 1.2, marginBottom: 8,
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '800', 
+        letterSpacing: 1.2, 
+        marginBottom: 8,
     },
-    bloqueScroll: { marginBottom: 14, height: 64, flexGrow: 0, flexShrink: 0 },
-    bloqueScrollContent: { alignItems: 'center', paddingRight: 8 },
+    bloqueScroll: { 
+        marginBottom: 14, 
+        height: 64, 
+        flexGrow: 0, 
+        flexShrink: 0 
+    },
+    bloqueScrollContent: { 
+        alignItems: 'center', 
+        paddingRight: 8 
+    },
+    // Bloque inactivo — Gris suave neutro
     bloqueBtn: {
-        height: 56, paddingHorizontal: 14, borderRadius: 14,
-        backgroundColor: '#1E293B', marginRight: 8,
-        borderWidth: 1, borderColor: '#1E293B',
-        justifyContent: 'center', alignItems: 'center',
+        height: 56, 
+        paddingHorizontal: 14, 
+        borderRadius: 14,
+        backgroundColor: '#F2F4F7', 
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#E0E6ED', 
+        justifyContent: 'center', 
+        alignItems: 'center',
     },
-    bloqueBtnActivo: { backgroundColor: '#818CF822', borderColor: '#818CF8' },
-    bloqueBtnLabel: { color: '#64748B', fontSize: 12, fontWeight: '800' },
-    bloqueBtnLabelActivo: { color: '#818CF8' },
-    bloqueBtnHoras: { color: '#334155', fontSize: 10, fontWeight: '600', marginTop: 3 },
-    bloqueBtnHorasActivo: { color: '#818CF8' },
+    // Bloque activo seleccionado — Azul claro traslúcido con borde Azul Movistar
+    bloqueBtnActivo: {
+        backgroundColor: '#EAF6FF', 
+        borderColor: '#009EF7', 
+    },
+    // Texto de bloque inactivo — Gris de apoyo Movistar
+    bloqueBtnLabel: {
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontWeight: '800',
+    },
+    // Texto de bloque activo — Azul Movistar principal
+    bloqueBtnLabelActivo: {
+        color: '#009EF7', 
+    },
+    // Horas de bloque inactivo — Gris estructurado intermedio
+    bloqueBtnHoras: {
+        color: '#B2C0CD', 
+        fontSize: 10, 
+        fontWeight: '600', 
+        marginTop: 3,
+    },
+    // Horas de bloque activo — Azul Movistar principal
+    bloqueBtnHorasActivo: {
+        color: '#009EF7', 
+    },
 
-    // Observaciones
+    // ─── Campo de entrada de observaciones ───────────────────────────────────
+    // Diseño limpio: Fondo gris suave con texto legible azul oscuro
     inputObs: {
-        backgroundColor: '#020617', borderRadius: 12, padding: 12,
-        color: '#F1F5F9', fontSize: 13, marginBottom: 14,
-        borderWidth: 1, borderColor: '#1E293B', minHeight: 50,
+        backgroundColor: '#F2F4F7', 
+        borderRadius: 12, 
+        padding: 12,
+        color: '#1A1A2E', 
+        fontSize: 13, 
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#E0E6ED', 
+        minHeight: 50, 
         textAlignVertical: 'top',
     },
 
-    // Guardar
+    // ─── Botón Guardar Cambios ───────────────────────────────────────────────
+    // Botón Premium — Azul oficial Movistar
     btnGuardar: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        gap: 8, backgroundColor: '#38BDF8', padding: 14, borderRadius: 14,
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#009EF7', 
+        padding: 14, 
+        borderRadius: 14,
     },
-    btnGuardarTxt: { color: '#020617', fontWeight: '900', fontSize: 14 },
+    // Texto de guardado — Blanco puro para máxima visualización
+    btnGuardarTxt: {
+        color: '#FFFFFF', 
+        fontWeight: '900', 
+        fontSize: 14,
+    },
 });

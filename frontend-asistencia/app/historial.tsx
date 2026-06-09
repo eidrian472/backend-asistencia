@@ -54,7 +54,7 @@ export default function HistorialScreen() {
     ) => {
         setCargando(true);
         try {
-            const fechaFormateada = fechaSeleccionada.toISOString().split('T')[0];
+            const fechaFormateada = fechaSeleccionada.toLocaleDateString('en-CA'); // YYYY-MM-DD usando reloj local
             const params: any = { fecha: fechaFormateada };
             if (filtroMencion !== 'Todas') params.mencion = filtroMencion;
             if (filtroAno !== 'Todos') params.ano = filtroAno;
@@ -124,8 +124,13 @@ export default function HistorialScreen() {
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
                     <Text style={styles.nombre}>{item.nro_lista ? `${item.nro_lista}. ` : ''}{item.nombre} {item.apellido}</Text>
-                    <View style={[styles.badge,
-                        item.estado === 'Asistido' ? styles.bgP : item.estado === 'Inasistente' ? styles.bgA : styles.bgR]}>
+                    <View style={[styles.badge, {
+                        backgroundColor: item.estado === 'Asistido'
+                            ? '#00C853'
+                            : item.estado === 'Inasistente'
+                                ? '#FF3B30'
+                                : '#FF9500'
+                    }]}>
                         <Text style={styles.badgeText}>{item.estado.charAt(0)}</Text>
                     </View>
                 </View>
@@ -196,36 +201,220 @@ export default function HistorialScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#020617', paddingHorizontal: 20 },
-    header: { marginTop: 60, flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 15 },
-    titulo: { fontSize: 24, fontWeight: '900', color: '#F8FAFC' },
-    dateSelector: { flexDirection: 'row', backgroundColor: '#0F172A', padding: 15, borderRadius: 15, alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#1E293B', marginBottom: 16 },
-    dateText: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
-    filtroLabel: { color: '#475569', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 6, marginLeft: 2 },
-    filtroScroll: { marginBottom: 14, height: 42, flexGrow: 0, flexShrink: 0 },
-    filtroScrollContent: { alignItems: 'center', paddingRight: 8 },
-    filtroBtn: { height: 36, paddingHorizontal: 16, borderRadius: 20, backgroundColor: '#0F172A', marginRight: 8, borderWidth: 1, borderColor: '#1E293B', justifyContent: 'center', alignItems: 'center' },
-    filtroBtnActivo: { backgroundColor: '#38BDF8', borderColor: '#38BDF8' },
-    filtroBtnActivoAno: { backgroundColor: '#818CF8', borderColor: '#818CF8' },
-    filtroBtnTxt: { color: '#64748B', fontSize: 13, fontWeight: '700' },
-    filtroBtnTxtActivo: { color: '#020617' },
-    card: { backgroundColor: '#0F172A', padding: 15, borderRadius: 15, marginBottom: 12, borderWidth: 1, borderColor: '#1E293B' },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    nombre: { color: '#F8FAFC', fontSize: 16, fontWeight: 'bold' },
-    badge: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    badgeText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
-    bgP: { backgroundColor: '#10B981' },
-    bgA: { backgroundColor: '#EF4444' },
-    bgR: { backgroundColor: '#F59E0B' },
-    obsBox: { marginTop: 10, backgroundColor: '#1E293B', padding: 8, borderRadius: 8 },
-    obsText: { color: '#94A3B8', fontSize: 12, fontStyle: 'italic' },
-    empty: { color: '#475569', textAlign: 'center', marginTop: 50, fontSize: 16 },
-    encabezadoMencion: { backgroundColor: '#0F172A', borderRadius: 14, padding: 14, marginBottom: 8, marginTop: 8, borderWidth: 1, borderColor: '#1E293B', borderLeftWidth: 4, borderLeftColor: '#38BDF8' },
-    encabezadoTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    encabezadoNombre: { color: '#F8FAFC', fontSize: 16, fontWeight: '900' },
-    encabezadoAno: { color: '#818CF8', fontSize: 12, fontWeight: '700', marginTop: 2 },
-    encabezadoBadge: { backgroundColor: '#1E293B', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#38BDF8' },
-    encabezadoBadgeText: { color: '#38BDF8', fontSize: 11, fontWeight: '900' },
-    encabezadoTema: { color: '#94A3B8', fontSize: 13, fontStyle: 'italic', marginTop: 6 },
-    encabezadoSinTema: { color: '#334155', fontSize: 12, fontStyle: 'italic', marginTop: 6 },
+    // Fondo principal de toda la pantalla — Gris/azul muy claro (entorno de lectura limpio)
+    container: { 
+        flex: 1, 
+        backgroundColor: '#F7F9FC', 
+        paddingHorizontal: 20 
+    },
+
+    header: { 
+        marginTop: 60, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        marginBottom: 20, 
+        gap: 15 
+    },
+    // Color del título "Historial de Asistencias" — Azul muy oscuro para alta legibilidad
+    titulo: { 
+        fontSize: 24, 
+        fontWeight: '900', 
+        color: '#1A1A2E' 
+    },
+
+    // Fondo del selector de fecha — Blanco puro con borde gris sutil
+    dateSelector: { 
+        flexDirection: 'row', 
+        backgroundColor: '#FFFFFF', 
+        padding: 15, 
+        borderRadius: 15, 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED', 
+        marginBottom: 16 
+    },
+    // Color del texto de la fecha en el selector — Azul muy oscuro
+    dateText: { 
+        color: '#1A1A2E', 
+        fontSize: 16, 
+        fontWeight: '700' 
+    },
+
+    // Color de las etiquetas "AÑO" y "MENCIÓN" — Gris de apoyo Movistar
+    filtroLabel: { 
+        color: '#8A9BB0', 
+        fontSize: 10, 
+        fontWeight: '800', 
+        letterSpacing: 1.5, 
+        marginBottom: 6, 
+        marginLeft: 2 
+    },
+    filtroScroll: { 
+        marginBottom: 14, 
+        height: 42, 
+        flexGrow: 0, 
+        flexShrink: 0 
+    },
+    filtroScrollContent: { 
+        alignItems: 'center', 
+        paddingRight: 8 
+    },
+    
+    // Fondo de cada botón de filtro inactivo — Gris suave neutro con borde sutil
+    filtroBtn: { 
+        height: 36, 
+        paddingHorizontal: 16, 
+        borderRadius: 20, 
+        backgroundColor: '#F2F4F7', 
+        marginRight: 8, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED', 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    // Fondo y borde del botón de filtro de MENCIÓN activo — Azul Movistar principal
+    filtroBtnActivo: { 
+        backgroundColor: '#009EF7', 
+        borderColor: '#009EF7' 
+    },
+    // Fondo y borde del botón de filtro de AÑO activo — Azul Movistar principal (Unificado para consistencia clara)
+    filtroBtnActivoAno: { 
+        backgroundColor: '#009EF7', 
+        borderColor: '#009EF7' 
+    },
+    // Texto de los botones de filtro inactivos — Gris de apoyo Movistar
+    filtroBtnTxt: { 
+        color: '#8A9BB0', 
+        fontSize: 13, 
+        fontWeight: '700' 
+    },
+    // Texto de los botones de filtro activos — Blanco puro (alto contraste)
+    filtroBtnTxtActivo: { 
+        color: '#FFFFFF' 
+    },
+
+    // Fondo de cada card de estudiante en el listado — Blanco puro con borde gris sutil
+    card: { 
+        backgroundColor: '#FFFFFF', 
+        padding: 15, 
+        borderRadius: 15, 
+        marginBottom: 12, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED' 
+    },
+    cardHeader: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center' 
+    },
+    // Color del nombre del estudiante en la card — Azul muy oscuro
+    nombre: { 
+        color: '#1A1A2E', 
+        fontSize: 16, 
+        fontWeight: 'bold' 
+    },
+    // Círculo de estado (badge) en la card de estudiante
+    badge: { 
+        width: 24, 
+        height: 24, 
+        borderRadius: 12, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    // Color de la letra inicial del estado dentro del badge — Blanco puro
+    badgeText: { 
+        color: '#FFFFFF', 
+        fontSize: 12, 
+        fontWeight: '900' 
+    },
+    // Fondo del badge cuando el estado es "Asistido" — Verde Movistar
+    bgP: { backgroundColor: '#00C853' },
+    // Fondo del badge cuando el estado es "Inasistente" — Rojo Alerta Movistar
+    bgA: { backgroundColor: '#FF3B30' },
+    // Fondo del badge cuando el estado es "Retirado" — Ámbar Movistar
+    bgR: { backgroundColor: '#FF9500' },
+
+    // Fondo del recuadro de observaciones dentro de la card — Gris suave adaptado
+    obsBox: { 
+        marginTop: 10, 
+        backgroundColor: '#F2F4F7', 
+        padding: 8, 
+        borderRadius: 8 
+    },
+    // Color del texto de observaciones — Gris de apoyo Movistar
+    obsText: { 
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontStyle: 'italic' 
+    },
+
+    // Color del mensaje "No hay registros..." — Gris de apoyo Movistar
+    empty: { 
+        color: '#8A9BB0', 
+        textAlign: 'center', 
+        marginTop: 50, 
+        fontSize: 16 
+    },
+
+    // Fondo del encabezado de grupo (mención + año) — Blanco puro con borde izquierdo destacado Azul Movistar
+    encabezadoMencion: { 
+        backgroundColor: '#FFFFFF', 
+        borderRadius: 14, 
+        padding: 14, 
+        marginBottom: 8, 
+        marginTop: 8, 
+        borderWidth: 1, 
+        borderColor: '#E0E6ED', 
+        borderLeftWidth: 4, 
+        borderLeftColor: '#009EF7' 
+    },
+    encabezadoTop: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 4 
+    },
+    // Color del nombre de la mención en el encabezado de grupo — Azul muy oscuro
+    encabezadoNombre: { 
+        color: '#1A1A2E', 
+        fontSize: 16, 
+        fontWeight: '900' 
+    },
+    // Color del texto del año en el encabezado de grupo — Azul Movistar principal
+    encabezadoAno: { 
+        color: '#009EF7', 
+        fontSize: 12, 
+        fontWeight: '700', 
+        marginTop: 2 
+    },
+    // Fondo del badge de clase — Azul muy claro Movistar con borde azul principal
+    encabezadoBadge: { 
+        backgroundColor: '#EAF6FF', 
+        paddingHorizontal: 10, 
+        paddingVertical: 4, 
+        borderRadius: 8, 
+        borderWidth: 1, 
+        borderColor: '#009EF7' 
+    },
+    // Color del texto del badge de clase — Azul Movistar principal
+    encabezadoBadgeText: { 
+        color: '#009EF7', 
+        fontSize: 11, 
+        fontWeight: '900' 
+    },
+    // Color del texto del tema de clase registrado — Gris de apoyo Movistar
+    encabezadoTema: { 
+        color: '#8A9BB0', 
+        fontSize: 13, 
+        fontStyle: 'italic', 
+        marginTop: 6 
+    },
+    // Color del texto "Sin tema registrado este día" — Gris de apoyo Movistar
+    encabezadoSinTema: { 
+        color: '#8A9BB0', 
+        fontSize: 12, 
+        fontStyle: 'italic', 
+        marginTop: 6 
+    },
 });

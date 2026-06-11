@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 app.get('/dashboard', (req, res) => {
-    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v14.html');
+    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v13.html');
     fs.readFile(filePath, 'utf8', (err, html) => {
         if (err) {
             console.error('❌ No se encontró el dashboard:', err.message);
@@ -843,6 +843,123 @@ app.get('/asistencia-docentes/historial', (req, res) => {
     db.query(query, params, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(result);
+    });
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── PUSH NOTIFICATIONS (Expo Push) ──────────────────────────────────────────
+
+// Guardar el push token de un usuario
+// El admin llama esto al iniciar sesión. El token se guarda en docentes_v2.
+app.post('/guardar-token', (req, res) => {
+    const { usuario, push_token } = req.body;
+    if (!usuario || !push_token) {
+        return res.status(400).json({ success: false, error: 'Faltan datos' });
+    }
+    const sql = `UPDATE docentes_v2 SET push_token = ? WHERE usuario = ?`;
+    db.query(sql, [push_token, usuario], (err) => {
+        if (err) {
+            console.error('❌ Error guardando token:', err.message);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        console.log(`✅ Token guardado para usuario: ${usuario}`);
+        res.json({ success: true });
+    });
+});
+
+// Obtener el push token del admin (el primer usuario con rol='admin')
+app.get('/token-admin', (req, res) => {
+    const sql = `SELECT push_token FROM docentes_v2 WHERE rol = 'admin' AND push_token IS NOT NULL AND push_token != '' LIMIT 1`;
+    db.query(sql, (err, result) => {
+        if (err) {
+            console.error('❌ Error obteniendo token admin:', err.message);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        if (result.length === 0 || !result[0].push_token) {
+            return res.json({ success: false, token: null });
+        }
+        res.json({ success: true, token: result[0].push_token });
+    });
+});
+
+// Verificar si ya se pasó asistencia de docentes hoy
+app.get('/asistencia-docentes/hoy', (req, res) => {
+    const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const sql = `SELECT COUNT(*) AS total FROM asistencia_docentes WHERE fecha = ?`;
+    db.query(sql, [hoy], (err, result) => {
+        if (err) {
+            console.error('❌ Error verificando asistencia docentes hoy:', err.message);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        const hayAsistencia = result[0].total > 0;
+        res.json({ success: true, registrada: hayAsistencia, fecha: hoy });
+    });
+});
+
+// Enviar notificación push al admin via Expo Push API
+app.post('/notificar-admin', async (req, res) => {
+    const { nombre_docente, usuario_docente } = req.body;
+    if (!nombre_docente) {
+        return res.status(400).json({ success: false, error: 'Falta nombre_docente' });
+    }
+
+    // Obtener el token del admin
+    const sql = `SELECT push_token FROM docentes_v2 WHERE rol = 'admin' AND push_token IS NOT NULL AND push_token != '' LIMIT 1`;
+    db.query(sql, async (err, result) => {
+        if (err || result.length === 0 || !result[0].push_token) {
+            console.warn('⚠️  No hay token de admin para notificar');
+            return res.json({ success: false, error: 'No hay token de admin registrado' });
+        }
+
+        const adminToken = result[0].push_token;
+
+        // Validar que sea un token Expo válido
+        if (!adminToken.startsWith('ExponentPushToken[')) {
+            return res.json({ success: false, error: 'Token inválido' });
+        }
+
+        try {
+            const https = require('https');
+            const payload = JSON.stringify({
+                to: adminToken,
+                sound: 'default',
+                title: '📋 Solicitud de Asistencia',
+                body: `${nombre_docente} solicita permiso para tomar asistencia de docentes`,
+                data: { usuario_docente: usuario_docente || '' },
+            });
+
+            const options = {
+                hostname: 'exp.host',
+                path: '/--/api/v2/push/send',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Content-Length': Buffer.byteLength(payload),
+                },
+            };
+
+            const pushReq = https.request(options, (pushRes) => {
+                let data = '';
+                pushRes.on('data', chunk => { data += chunk; });
+                pushRes.on('end', () => {
+                    console.log(`✅ Notificación enviada a admin. Respuesta Expo: ${data}`);
+                    res.json({ success: true, expo_response: data });
+                });
+            });
+
+            pushReq.on('error', (e) => {
+                console.error('❌ Error enviando notificación:', e.message);
+                res.status(500).json({ success: false, error: e.message });
+            });
+
+            pushReq.write(payload);
+            pushReq.end();
+        } catch (e) {
+            console.error('❌ Error inesperado en notificación:', e.message);
+            res.status(500).json({ success: false, error: e.message });
+        }
     });
 });
 // ─────────────────────────────────────────────────────────────────────────────

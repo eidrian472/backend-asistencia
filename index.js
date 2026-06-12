@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 app.get('/dashboard', (req, res) => {
-    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v14.html');
+    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v13.html');
     fs.readFile(filePath, 'utf8', (err, html) => {
         if (err) {
             console.error('❌ No se encontró el dashboard:', err.message);
@@ -407,10 +407,171 @@ app.put('/admin/estudiantes/:id', (req, res) => {
     });
 });
 
+// ─── SOFT DELETE: mover estudiante a papelera ────────────────────────────────
 app.delete('/admin/estudiantes/:cedula', (req, res) => {
-    db.query('DELETE FROM estudiantes_v2 WHERE cedula = ?', [req.params.cedula], (err) => {
+    const cedula = req.params.cedula;
+    const eliminado_por = req.body?.eliminado_por || null;
+    const motivo        = req.body?.motivo        || null;
+
+    // 1. Obtener todos los datos del estudiante + representante
+    const sqlBuscar = `
+        SELECT
+            e.id, e.cedula, e.nombre, e.apellido, e.nro_lista, e.seccion,
+            e.representante_id,
+            men.nombre  AS mencion,
+            g.nombre    AS ano,
+            gen.nombre  AS genero,
+            r.cedula    AS rep_cedula,
+            r.nombre    AS rep_nombre,
+            r.apellido  AS rep_apellido,
+            r.telefono  AS rep_telefono,
+            r.direccion AS rep_direccion
+        FROM estudiantes_v2 e
+        LEFT JOIN menciones      men ON men.id = e.mencion_id
+        LEFT JOIN grados         g   ON g.id   = e.grado_id
+        LEFT JOIN generos        gen ON gen.id  = e.genero_id
+        LEFT JOIN representantes r   ON r.id    = e.representante_id
+        WHERE e.cedula = ?
+        LIMIT 1
+    `;
+    db.query(sqlBuscar, [cedula], (err, rows) => {
+        if (err)           return res.status(500).json({ success: false, error: err.message });
+        if (!rows.length)  return res.status(404).json({ success: false, error: 'Estudiante no encontrado' });
+
+        const est = rows[0];
+
+        // 2. Insertar en la papelera
+        const sqlPapelera = `
+            INSERT INTO estudiantes_eliminados
+              (cedula, nombre, apellido, nro_lista, seccion, mencion, ano, genero,
+               rep_cedula, rep_nombre, rep_apellido, rep_telefono, rep_direccion,
+               eliminado_por, motivo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        db.query(sqlPapelera, [
+            est.cedula, est.nombre, est.apellido, est.nro_lista, est.seccion,
+            est.mencion, est.ano, est.genero,
+            est.rep_cedula, est.rep_nombre, est.rep_apellido,
+            est.rep_telefono, est.rep_direccion,
+            eliminado_por, motivo
+        ], (err2) => {
+            if (err2) return res.status(500).json({ success: false, error: err2.message });
+
+            // 3. Eliminar asistencias del estudiante
+            db.query('DELETE FROM asistencias_v2 WHERE estudiante_id = ?', [est.id], (err3) => {
+                if (err3) return res.status(500).json({ success: false, error: err3.message });
+
+                // 4. Eliminar el estudiante
+                db.query('DELETE FROM estudiantes_v2 WHERE cedula = ?', [cedula], (err4) => {
+                    if (err4) return res.status(500).json({ success: false, error: err4.message });
+
+                    // 5. Eliminar representante si ya no tiene otros estudiantes
+                    if (!est.representante_id) {
+                        return res.json({ success: true, mensaje: `${est.nombre} ${est.apellido} movido a papelera` });
+                    }
+                    db.query(
+                        'SELECT COUNT(*) AS cnt FROM estudiantes_v2 WHERE representante_id = ?',
+                        [est.representante_id],
+                        (err5, cntRows) => {
+                            if (!err5 && cntRows[0].cnt === 0) {
+                                db.query('DELETE FROM representantes WHERE id = ?', [est.representante_id]);
+                            }
+                            res.json({ success: true, mensaje: `${est.nombre} ${est.apellido} movido a papelera` });
+                        }
+                    );
+                });
+            });
+        });
+    });
+});
+
+// ─── PAPELERA: listar eliminados ─────────────────────────────────────────────
+app.get('/admin/papelera', (req, res) => {
+    const { mencion, ano } = req.query;
+    let sql = 'SELECT * FROM estudiantes_eliminados WHERE 1=1';
+    const params = [];
+    if (mencion) { sql += ' AND mencion = ?'; params.push(mencion); }
+    if (ano)     { sql += ' AND ano = ?';     params.push(ano); }
+    sql += ' ORDER BY eliminado_en DESC';
+
+    db.query(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ success: false, error: err.message });
-        res.json({ success: true });
+        res.json({ success: true, papelera: rows });
+    });
+});
+
+// ─── PAPELERA: restaurar estudiante ──────────────────────────────────────────
+app.post('/admin/restaurar/:cedula', (req, res) => {
+    const cedula = req.params.cedula;
+
+    // 1. Obtener datos de la papelera
+    db.query('SELECT * FROM estudiantes_eliminados WHERE cedula = ? LIMIT 1', [cedula], (err, rows) => {
+        if (err)          return res.status(500).json({ success: false, error: err.message });
+        if (!rows.length) return res.status(404).json({ success: false, error: 'No está en la papelera' });
+
+        const p = rows[0];
+
+        // 2. Verificar que no exista ya en activos
+        db.query('SELECT id FROM estudiantes_v2 WHERE cedula = ? LIMIT 1', [cedula], (err2, existe) => {
+            if (err2) return res.status(500).json({ success: false, error: err2.message });
+            if (existe.length) return res.status(409).json({ success: false, error: 'Ya existe un estudiante activo con esa cédula' });
+
+            // 3. Resolver IDs de mención y grado
+            db.query('SELECT id FROM menciones WHERE nombre = ? LIMIT 1', [p.mencion], (err3, mRows) => {
+                if (err3 || !mRows.length) return res.status(422).json({ success: false, error: `Mención "${p.mencion}" no encontrada` });
+                const mencionId = mRows[0].id;
+
+                db.query('SELECT id FROM grados WHERE nombre = ? LIMIT 1', [p.ano], (err4, gRows) => {
+                    if (err4 || !gRows.length) return res.status(422).json({ success: false, error: `Grado "${p.ano}" no encontrado` });
+                    const gradoId = gRows[0].id;
+
+                    // 4. Restaurar o crear representante
+                    db.query('SELECT id FROM representantes WHERE cedula = ? LIMIT 1', [p.rep_cedula], (err5, repRows) => {
+                        if (err5) return res.status(500).json({ success: false, error: err5.message });
+
+                        const continuarConRepId = (repId) => {
+                            // 5. Re-insertar estudiante
+                            db.query(
+                                `INSERT INTO estudiantes_v2
+                                   (cedula, nombre, apellido, nro_lista, seccion, mencion_id, grado_id, representante_id)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                                [p.cedula, p.nombre, p.apellido, p.nro_lista, p.seccion, mencionId, gradoId, repId],
+                                (err6) => {
+                                    if (err6) return res.status(500).json({ success: false, error: err6.message });
+
+                                    // 6. Eliminar de papelera
+                                    db.query('DELETE FROM estudiantes_eliminados WHERE cedula = ?', [cedula], () => {
+                                        res.json({ success: true, mensaje: `${p.nombre} ${p.apellido} restaurado correctamente` });
+                                    });
+                                }
+                            );
+                        };
+
+                        if (repRows.length) {
+                            continuarConRepId(repRows[0].id);
+                        } else {
+                            db.query(
+                                'INSERT INTO representantes (cedula, nombre, apellido, telefono, direccion) VALUES (?, ?, ?, ?, ?)',
+                                [p.rep_cedula, p.rep_nombre, p.rep_apellido, p.rep_telefono, p.rep_direccion],
+                                (err7, ins) => {
+                                    if (err7) return res.status(500).json({ success: false, error: err7.message });
+                                    continuarConRepId(ins.insertId);
+                                }
+                            );
+                        }
+                    });
+                });
+            });
+        });
+    });
+});
+
+// ─── PAPELERA: eliminar definitivamente ──────────────────────────────────────
+app.delete('/admin/papelera/:cedula', (req, res) => {
+    db.query('DELETE FROM estudiantes_eliminados WHERE cedula = ?', [req.params.cedula], (err, result) => {
+        if (err) return res.status(500).json({ success: false, error: err.message });
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, error: 'No encontrado en papelera' });
+        res.json({ success: true, mensaje: 'Eliminado permanentemente de la papelera' });
     });
 });
 // ─────────────────────────────────────────────────────────────────────────────

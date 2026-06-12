@@ -68,8 +68,56 @@ app.get('/catalogos', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
+// Helper: enviar notificación push al admin
+async function notificarAdmin(titulo, cuerpo, datos = {}) {
+    return new Promise((resolve) => {
+        const sql = `SELECT push_token FROM docentes_v2 WHERE rol = 'admin' AND push_token IS NOT NULL AND push_token != '' ORDER BY id ASC LIMIT 1`;
+        db.query(sql, async (err, result) => {
+            if (err || result.length === 0 || !result[0].push_token) {
+                console.warn('⚠️  Sin token de admin para notificar');
+                return resolve(false);
+            }
+            const token = result[0].push_token;
+            if (!token.startsWith('ExponentPushToken[')) return resolve(false);
+
+            const https = require('https');
+            const payload = JSON.stringify({
+                to: token,
+                sound: 'default',
+                title: titulo,
+                body: cuerpo,
+                data: datos,
+            });
+            const options = {
+                hostname: 'exp.host',
+                path: '/--/api/v2/push/send',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload),
+                },
+            };
+            const req = https.request(options, (pushRes) => {
+                let data = '';
+                pushRes.on('data', chunk => { data += chunk; });
+                pushRes.on('end', () => {
+                    console.log(`✅ Push enviado al admin: ${data}`);
+                    resolve(true);
+                });
+            });
+            req.on('error', (e) => {
+                console.error('❌ Error push:', e.message);
+                resolve(false);
+            });
+            req.write(payload);
+            req.end();
+        });
+    });
+}
+
 app.post('/login', (req, res) => {
-    const { usuario, contrasena } = req.body;
+    const { usuario, contrasena, push_token } = req.body;
     console.log(`\n-- Intento de Login --\nUsuario: ${usuario}`);
 
     const query = `
@@ -91,18 +139,46 @@ app.post('/login', (req, res) => {
         LIMIT 1
     `;
 
-    db.query(query, [usuario], (err, result) => {
+    db.query(query, [usuario], async (err, result) => {
         if (err) {
             console.error('❌ Error en query de login:', err);
             return res.status(500).json({ success: false, error: err.message });
         }
+
+        // Usuario no existe → notificar al admin
         if (result.length === 0) {
+            console.warn(`⚠️  Intento de acceso con usuario inexistente: "${usuario}"`);
+            await notificarAdmin(
+                '🚨 Acceso no autorizado',
+                `Alguien intentó ingresar con el usuario "${usuario}" (no registrado)`,
+                { tipo: 'intruso', usuario_intentado: usuario }
+            );
             return res.json({ success: false, campo: 'usuario', message: 'El usuario no existe' });
         }
 
         const docente = result[0];
+
+        // Contraseña incorrecta → notificar al admin
         if (docente.contrasena !== contrasena) {
+            console.warn(`⚠️  Contraseña incorrecta para usuario: "${usuario}"`);
+            await notificarAdmin(
+                '⚠️ Contraseña incorrecta',
+                `Se intentó acceder a la cuenta "${usuario}" con contraseña incorrecta`,
+                { tipo: 'contrasena_incorrecta', usuario_intentado: usuario }
+            );
             return res.json({ success: false, campo: 'contrasena', message: 'Contraseña incorrecta' });
+        }
+
+        // Login exitoso: si hay push_token y es admin, guardarlo
+        if (push_token && push_token.startsWith('ExponentPushToken[') && docente.rol === 'admin') {
+            db.query(
+                `UPDATE docentes_v2 SET push_token = ? WHERE usuario = ?`,
+                [push_token, usuario],
+                (tokErr) => {
+                    if (tokErr) console.error('⚠️  No se pudo guardar push_token:', tokErr.message);
+                    else console.log(`✅ Push token actualizado para admin: ${usuario}`);
+                }
+            );
         }
 
         res.json({

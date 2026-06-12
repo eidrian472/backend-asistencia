@@ -1285,15 +1285,36 @@ textarea.mat-input { resize: vertical; }
           <i class="ti ti-user-minus" style="color:var(--red)"></i>
           <span style="color:var(--red)">Baja de Estudiante</span>
         </div>
+        <div style="font-size:12px;color:var(--text4);margin-bottom:12px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-archive" style="color:var(--amber)"></i>
+          El estudiante se moverá a la papelera — podrás restaurarlo si fue un error.
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
           <div style="flex:1;min-width:200px">
-            <input id="m-baja-ced" class="mat-input" placeholder="Cédula a buscar" style="margin-bottom:0">
+            <input id="m-baja-ced" class="mat-input" placeholder="Cédula a buscar (solo números)" style="margin-bottom:0">
           </div>
           <button class="btn btn-danger" style="font-weight:800;padding:12px 20px;white-space:nowrap" onclick="matBuscar()">
-            <i class="ti ti-search"></i> BUSCAR Y ELIMINAR
+            <i class="ti ti-search"></i> BUSCAR Y DAR DE BAJA
           </button>
         </div>
         <div id="m-baja-result" style="margin-top:14px"></div>
+      </div>
+
+      <!-- Papelera -->
+      <div class="card" style="border-color:rgba(255,149,0,.35)">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="togglePapelera()">
+          <div class="section-title" style="margin-bottom:0">
+            <i class="ti ti-trash" style="color:var(--amber)"></i>
+            <span style="color:var(--amber)">Papelera <span id="papelera-count" style="font-size:12px;font-weight:700;background:var(--amber-dim);color:var(--amber);padding:2px 8px;border-radius:20px;margin-left:6px;display:none"></span></span>
+          </div>
+          <i class="ti ti-chevron-down" id="papelera-chevron" style="color:var(--amber);transition:transform .2s"></i>
+        </div>
+        <div id="papelera-body" style="display:none;margin-top:16px">
+          <div id="papelera-list"></div>
+          <button class="btn" style="margin-top:12px;font-size:12px" onclick="cargarPapelera()">
+            <i class="ti ti-refresh"></i> Actualizar lista
+          </button>
+        </div>
       </div>
 
     </div><!-- /#page-matricula -->
@@ -2861,7 +2882,7 @@ async function matBuscar() {
 
       <!-- Advertencia + botones -->
       <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#EF4444;font-weight:600">
-        <i class="ti ti-alert-triangle" style="margin-right:6px"></i>Esta acción eliminará al estudiante y sus registros de asistencia. No se puede deshacer fácilmente.
+        <i class="ti ti-archive" style="margin-right:6px"></i>El estudiante se moverá a la papelera. Podrás restaurarlo desde la sección Papelera si fue un error.
       </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -2869,7 +2890,7 @@ async function matBuscar() {
           <i class="ti ti-x"></i> Cancelar
         </button>
         <button class="btn btn-danger" style="font-weight:800" onclick="matEliminar('${cedula}')">
-          <i class="ti ti-trash"></i> SÍ, ELIMINAR
+          <i class="ti ti-archive"></i> SÍ, DAR DE BAJA
         </button>
       </div>
 
@@ -2878,22 +2899,122 @@ async function matBuscar() {
 
 async function matEliminar(cedula) {
   const el = document.getElementById('m-baja-result');
-  el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Eliminando…</div>';
+  el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Dando de baja…</div>';
   try {
-    const res  = await fetch(API + '/admin/estudiantes/' + cedula, { method:'DELETE' });
+    const res  = await fetch(API + '/admin/estudiantes/' + cedula, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eliminado_por: SESSION?.usuario || 'admin' })
+    });
     const data = await res.json();
     if (data.success) {
-      el.innerHTML = `<div class="api-dot" style="background:var(--green-dim);border-color:rgba(16,185,129,.25)">
-        <i class="ti ti-circle-check" style="color:var(--green);font-size:18px"></i>
-        <span style="color:var(--green);font-size:13px;font-weight:700">Estudiante eliminado correctamente.</span>
+      el.innerHTML = `<div class="api-dot" style="background:var(--amber-dim);border-color:rgba(255,149,0,.25)">
+        <i class="ti ti-archive" style="color:var(--amber);font-size:18px"></i>
+        <span style="color:var(--amber);font-size:13px;font-weight:700">📦 Movido a papelera. Puedes restaurarlo desde la sección Papelera.</span>
       </div>`;
       document.getElementById('m-baja-ced').value = '';
       todosEstudiantes = [];
     } else {
-      el.innerHTML = '<div class="warn-box"><i class="ti ti-x"></i>No se pudo eliminar.</div>';
+      el.innerHTML = '<div class="warn-box"><i class="ti ti-x"></i>' + (data.error || 'No se pudo dar de baja.') + '</div>';
     }
   } catch {
     el.innerHTML = '<div class="warn-box"><i class="ti ti-wifi-off"></i>Error de red.</div>';
+  }
+}
+
+/* ─── PAPELERA ─── */
+let _papeleraAbierta = false;
+
+function togglePapelera() {
+  _papeleraAbierta = !_papeleraAbierta;
+  const body = document.getElementById('papelera-body');
+  const chev = document.getElementById('papelera-chevron');
+  body.style.display = _papeleraAbierta ? 'block' : 'none';
+  chev.style.transform = _papeleraAbierta ? 'rotate(180deg)' : 'rotate(0deg)';
+  if (_papeleraAbierta) cargarPapelera();
+}
+
+async function cargarPapelera() {
+  const list = document.getElementById('papelera-list');
+  list.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Cargando…</div>';
+  try {
+    const data = await get('/admin/papelera');
+    if (!data || !data.success) {
+      list.innerHTML = '<div class="warn-box"><i class="ti ti-x"></i>No se pudo cargar la papelera.</div>';
+      return;
+    }
+    const items = data.papelera;
+    const countEl = document.getElementById('papelera-count');
+    if (items.length > 0) {
+      countEl.textContent = items.length;
+      countEl.style.display = 'inline';
+    } else {
+      countEl.style.display = 'none';
+    }
+    if (items.length === 0) {
+      list.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text4)">
+        <i class="ti ti-circle-check" style="font-size:32px;color:var(--green);display:block;margin-bottom:8px"></i>
+        <span style="font-weight:600">La papelera está vacía</span>
+      </div>`;
+      return;
+    }
+    list.innerHTML = items.map(p => {
+      const fecha = new Date(p.eliminado_en).toLocaleDateString('es-VE');
+      return `<div style="background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid rgba(255,149,0,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px">${p.nombre} ${p.apellido}</div>
+            <div style="font-size:12px;color:var(--text4);margin-bottom:2px">🪪 ${p.cedula} &nbsp;·&nbsp; ${p.ano} &nbsp;·&nbsp; ${p.mencion}</div>
+            <div style="font-size:11px;color:var(--amber);font-style:italic">Dado de baja: ${fecha}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            <button class="btn" style="padding:8px 12px;font-size:12px;background:var(--green-dim);color:var(--green);border-color:rgba(16,185,129,.3);font-weight:700"
+              onclick="restaurarEstudiante('${p.cedula}', '${p.nombre} ${p.apellido}')">
+              <i class="ti ti-refresh"></i> Restaurar
+            </button>
+            <button class="btn btn-danger" style="padding:8px 12px;font-size:12px;font-weight:700"
+              onclick="eliminarDefinitivo('${p.cedula}', '${p.nombre} ${p.apellido}')">
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch {
+    list.innerHTML = '<div class="warn-box"><i class="ti ti-wifi-off"></i>Error de red al cargar papelera.</div>';
+  }
+}
+
+async function restaurarEstudiante(cedula, nombre) {
+  if (!confirm('¿Restaurar a ' + nombre + ' en la matrícula activa?')) return;
+  const list = document.getElementById('papelera-list');
+  try {
+    const res  = await fetch(API + '/admin/restaurar/' + cedula, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      todosEstudiantes = [];
+      cargarPapelera();
+      alert('✅ ' + nombre + ' restaurado correctamente.');
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo restaurar.'));
+    }
+  } catch {
+    alert('Error de red al restaurar.');
+  }
+}
+
+async function eliminarDefinitivo(cedula, nombre) {
+  if (!confirm('⛔ ELIMINAR DEFINITIVAMENTE a ' + nombre + '\n\nEsta acción NO se puede deshacer. ¿Estás seguro?')) return;
+  try {
+    const res  = await fetch(API + '/admin/papelera/' + cedula, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      cargarPapelera();
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo eliminar.'));
+    }
+  } catch {
+    alert('Error de red.');
   }
 }
 

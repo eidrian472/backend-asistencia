@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 app.get('/dashboard', (req, res) => {
-    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v14.html');
+    const filePath = path.join(__dirname, 'dashboard_asistencia_et_jrgs_v13.html');
     fs.readFile(filePath, 'utf8', (err, html) => {
         if (err) {
             console.error('❌ No se encontró el dashboard:', err.message);
@@ -1018,18 +1018,19 @@ app.get('/verificar-asistencia-docente', (req, res) => {
 
     const hoy = new Date().toISOString().split('T')[0];
 
-    db.query('SELECT id FROM docentes_v2 WHERE usuario = ?', [usuario], (err, result) => {
+    db.query('SELECT id, nombre, apellido FROM docentes_v2 WHERE usuario = ?', [usuario], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         if (result.length === 0) return res.status(404).json({ habilitado: false, motivo: 'Docente no encontrado' });
 
         const docente_id = result[0].id;
+        const nombre_completo = `${result[0].nombre ?? ''} ${result[0].apellido ?? ''}`.trim();
 
         db.query(
             'SELECT estado FROM asistencia_docentes WHERE docente_id = ? AND fecha = ?',
             [docente_id, hoy],
             (err2, rows) => {
                 if (err2) return res.status(500).json({ error: err2.message });
-                if (rows.length === 0) return res.json({ habilitado: false, motivo: 'sin_registro' });
+                if (rows.length === 0) return res.json({ habilitado: false, motivo: 'sin_registro', nombre: nombre_completo });
 
                 const estado = rows[0].estado;
                 if (estado === 'Ausente') return res.json({ habilitado: false, motivo: 'ausente' });

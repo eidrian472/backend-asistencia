@@ -1120,19 +1120,8 @@ app.get('/token-admin', (req, res) => {
     });
 });
 
-// Verificar si ya se pasó asistencia de docentes hoy
-app.get('/asistencia-docentes/hoy', (req, res) => {
-    const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const sql = `SELECT COUNT(*) AS total FROM asistencia_docentes WHERE fecha = ?`;
-    db.query(sql, [hoy], (err, result) => {
-        if (err) {
-            console.error('❌ Error verificando asistencia docentes hoy:', err.message);
-            return res.status(500).json({ success: false, error: err.message });
-        }
-        const hayAsistencia = result[0].total > 0;
-        res.json({ success: true, registrada: hayAsistencia, fecha: hoy });
-    });
-});
+// NOTA: El endpoint GET /asistencia-docentes/hoy ya está definido arriba (línea ~1000).
+// El segundo registro fue eliminado — Express solo ejecuta el primero.
 
 // Enviar notificación push al admin via Expo Push API
 app.post('/notificar-admin', async (req, res) => {

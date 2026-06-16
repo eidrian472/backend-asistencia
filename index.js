@@ -658,11 +658,18 @@ app.delete('/admin/papelera/:cedula', (req, res) => {
 app.post('/registrar-asistencia', (req, res) => {
     const { estudiante_id, estado, materia, observacion } = req.body;
 
+    console.log(`\n── POST /registrar-asistencia ──`);
+    console.log(`  Body: est=${estudiante_id} | estado="${estado}" | materia="${materia}" | obs="${observacion ?? ''}"`);
+
     if (!estudiante_id || !estado || !materia) {
+        console.error('  ❌ Faltan campos obligatorios');
         return res.status(400).json({ success: false, error: 'Faltan campos: estudiante_id, estado, materia' });
     }
 
-    const fecha = new Date().toISOString().split('T')[0];
+    // Usar hora Venezuela (UTC-4) para la fecha, igual que el resto del sistema
+    const ahoraVE = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const fecha = ahoraVE.toISOString().split('T')[0];
+    console.log(`  Fecha VE: ${fecha}`);
 
     // Mapa de estado string → código en la tabla estados_asistencia
     const estadoCodigo = estado === 'Asistido' ? 'P'
@@ -671,6 +678,7 @@ app.post('/registrar-asistencia', (req, res) => {
                 : null;
 
     if (!estadoCodigo) {
+        console.error(`  ❌ Estado desconocido: "${estado}"`);
         return res.status(400).json({ success: false, error: `Estado desconocido: ${estado}` });
     }
 
@@ -679,30 +687,45 @@ app.post('/registrar-asistencia', (req, res) => {
         'SELECT id FROM estados_asistencia WHERE codigo = ? LIMIT 1',
         [estadoCodigo],
         (err, estadoRows) => {
-            if (err) return res.status(500).json({ success: false, error: err.message });
+            if (err) {
+                console.error('  ❌ Error al buscar estado:', err.message);
+                return res.status(500).json({ success: false, error: err.message });
+            }
             if (estadoRows.length === 0) {
+                console.error(`  ❌ No existe estado con código: ${estadoCodigo}`);
                 return res.status(400).json({ success: false, error: `No se encontró estado con código: ${estadoCodigo}` });
             }
             const estado_id = estadoRows[0].id;
+            console.log(`  estado_id resuelto: ${estado_id}`);
 
-            // Resolver materia_id (si materia es "General", la buscamos o usamos 1 como fallback)
+            // Resolver materia_id
             const materiaFinal = (!materia || materia === 'General') ? 'General' : materia;
 
             db.query(
                 'SELECT id FROM materias WHERE nombre = ? LIMIT 1',
                 [materiaFinal],
                 (err2, materiaRows) => {
-                    if (err2) return res.status(500).json({ success: false, error: err2.message });
+                    if (err2) {
+                        console.error('  ❌ Error al buscar materia:', err2.message);
+                        return res.status(500).json({ success: false, error: err2.message });
+                    }
 
-                    // Si no existe la materia en la tabla, intentamos insertarla automáticamente
+                    // Si no existe la materia, la creamos automáticamente
                     if (materiaRows.length === 0) {
+                        console.warn(`  ⚠️  Materia "${materiaFinal}" no existe, creando...`);
                         db.query(
                             'INSERT IGNORE INTO materias (nombre) VALUES (?)',
                             [materiaFinal],
                             (err3) => {
-                                if (err3) return res.status(500).json({ success: false, error: err3.message });
+                                if (err3) {
+                                    console.error('  ❌ Error al crear materia:', err3.message);
+                                    return res.status(500).json({ success: false, error: err3.message });
+                                }
                                 db.query('SELECT id FROM materias WHERE nombre = ? LIMIT 1', [materiaFinal], (err4, rows4) => {
-                                    if (err4 || rows4.length === 0) return res.status(500).json({ success: false, error: 'No se pudo resolver materia' });
+                                    if (err4 || rows4.length === 0) {
+                                        console.error('  ❌ No se pudo resolver materia tras crearla');
+                                        return res.status(500).json({ success: false, error: 'No se pudo resolver materia' });
+                                    }
                                     insertarAsistencia(rows4[0].id);
                                 });
                             }
@@ -712,20 +735,53 @@ app.post('/registrar-asistencia', (req, res) => {
                     }
 
                     function insertarAsistencia(materia_id) {
-                        const query = `
-                            INSERT INTO asistencias_v2 (estudiante_id, materia_id, estado_id, observaciones, fecha)
-                            VALUES (?, ?, ?, ?, ?)
-                            ON DUPLICATE KEY UPDATE
-                                estado_id     = VALUES(estado_id),
-                                observaciones = VALUES(observaciones)
+                        console.log(`  materia_id resuelto: ${materia_id} ("${materiaFinal}")`);
+
+                        // Estrategia robusta: primero intentar UPDATE (registro ya existe hoy),
+                        // si no afecta filas → INSERT. Evita depender de UNIQUE KEY en la tabla.
+                        const sqlUpdate = `
+                            UPDATE asistencias_v2
+                            SET estado_id = ?, observaciones = ?
+                            WHERE estudiante_id = ? AND materia_id = ? AND fecha = ?
                         `;
-                        db.query(query, [estudiante_id, materia_id, estado_id, observacion || null, fecha], (err5) => {
-                            if (err5) {
-                                console.error('❌ Error al registrar asistencia:', err5.message);
-                                return res.status(500).json({ success: false, error: err5.message });
+                        db.query(sqlUpdate, [estado_id, observacion || null, estudiante_id, materia_id, fecha], (errU, resU) => {
+                            if (errU) {
+                                console.error('  ❌ Error en UPDATE asistencia:', errU.message);
+                                return res.status(500).json({ success: false, error: errU.message });
                             }
-                            console.log(`✅ Asistencia: est.${estudiante_id} mat."${materiaFinal}"(${materia_id}) estado:"${estado}"(${estado_id})`);
-                            res.json({ success: true });
+
+                            if (resU.affectedRows > 0) {
+                                // Ya existía → actualizado
+                                console.log(`  ✅ UPDATED: est.${estudiante_id} mat.${materia_id} estado.${estado_id} fecha.${fecha}`);
+                                return res.json({ success: true });
+                            }
+
+                            // No existía → insertar
+                            const sqlInsert = `
+                                INSERT INTO asistencias_v2 (estudiante_id, materia_id, estado_id, observaciones, fecha)
+                                VALUES (?, ?, ?, ?, ?)
+                            `;
+                            db.query(sqlInsert, [estudiante_id, materia_id, estado_id, observacion || null, fecha], (errI) => {
+                                if (errI) {
+                                    // Si falla por duplicado (race condition), hacer UPDATE como fallback
+                                    if (errI.code === 'ER_DUP_ENTRY') {
+                                        console.warn('  ⚠️  Duplicado en INSERT, haciendo UPDATE de rescate...');
+                                        db.query(sqlUpdate, [estado_id, observacion || null, estudiante_id, materia_id, fecha], (errU2) => {
+                                            if (errU2) {
+                                                console.error('  ❌ Error en UPDATE de rescate:', errU2.message);
+                                                return res.status(500).json({ success: false, error: errU2.message });
+                                            }
+                                            console.log(`  ✅ RESCUED UPDATE: est.${estudiante_id}`);
+                                            return res.json({ success: true });
+                                        });
+                                        return;
+                                    }
+                                    console.error('  ❌ Error en INSERT asistencia:', errI.message, '| code:', errI.code);
+                                    return res.status(500).json({ success: false, error: errI.message });
+                                }
+                                console.log(`  ✅ INSERTED: est.${estudiante_id} mat.${materia_id} estado.${estado_id} fecha.${fecha}`);
+                                res.json({ success: true });
+                            });
                         });
                     }
                 }

@@ -840,6 +840,195 @@ textarea.mat-input { resize: vertical; }
 .mat-banner.err  i, .mat-banner.err  span { color: var(--red); }
 .mat-banner.ok   i, .mat-banner.ok   span { color: var(--green); }
 
+
+/* ===== V16: PERFIL ===== */
+.perfil-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 32px;
+  max-width: 560px;
+  margin: 0 auto 24px;
+}
+.perfil-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.perfil-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 900;
+  color: #fff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 6px var(--sky-dim);
+  position: relative;
+}
+.perfil-rol-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface);
+  font-size: 13px;
+}
+.perfil-nombre { font-size: 22px; font-weight: 900; color: var(--text); }
+.perfil-handle { font-size: 13px; color: var(--text4); }
+.perfil-rol-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid;
+}
+.perfil-info-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--surface3);
+}
+.perfil-info-row:last-child { border-bottom: none; }
+.perfil-info-icon {
+  width: 38px; height: 38px;
+  background: var(--sky-dim);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.perfil-info-label { font-size: 11px; color: var(--text4); font-weight: 600; margin-bottom: 2px; }
+.perfil-info-val { font-size: 15px; font-weight: 700; color: var(--text); }
+.perfil-card-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text4);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+/* ===== V16: PREFERENCIAS ===== */
+.pref-section {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 24px;
+  max-width: 560px;
+  margin: 0 auto 20px;
+}
+.pref-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text4);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--surface3);
+}
+.pref-row:last-child { border-bottom: none; }
+.pref-row-left { display: flex; align-items: center; gap: 12px; }
+.pref-row-icon {
+  width: 36px; height: 36px;
+  background: var(--sky-dim);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.pref-row-label { font-size: 14px; font-weight: 700; color: var(--text); }
+.pref-row-sub { font-size: 11px; color: var(--text4); margin-top: 1px; }
+.toggle-group {
+  display: flex;
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.toggle-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text4);
+  transition: all .15s;
+}
+.toggle-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.ano-color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid transparent;
+}
+.ano-activo-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.ano-activo-badge {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.ano-activo-label { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; color: var(--text4); text-transform: uppercase; }
+.ano-activo-valor { font-size: 18px; font-weight: 900; }
+.ano-chip-selector { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.ano-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all .15s;
+  opacity: .55;
+}
+.ano-chip:hover { opacity: .8; }
+.ano-chip.active { opacity: 1; }
 </style>
 </head>
 <body>
@@ -947,6 +1136,14 @@ textarea.mat-input { resize: vertical; }
       <div class="nav-item" data-page="matricula" id="nav-matricula" style="display:none">
         <i class="ti ti-user-plus"></i>Matrícula
       </div>
+
+      <div class="nav-section">Personal</div>
+      <div class="nav-item" data-page="perfil" id="nav-perfil">
+        <i class="ti ti-user-circle"></i>Mi perfil
+      </div>
+      <div class="nav-item" data-page="preferencias" id="nav-preferencias">
+        <i class="ti ti-settings"></i>Preferencias
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -977,6 +1174,13 @@ textarea.mat-input { resize: vertical; }
           </div>
           <i class="ti ti-chevron-down" style="font-size:13px;color:var(--text4);margin-left:2px"></i>
           <div class="user-menu" id="user-menu">
+            <div class="user-menu-item" onclick="navTo('perfil');document.getElementById('user-menu').classList.remove('open')">
+              <i class="ti ti-user-circle"></i> Mi perfil
+            </div>
+            <div class="user-menu-item" onclick="navTo('preferencias');document.getElementById('user-menu').classList.remove('open')">
+              <i class="ti ti-settings"></i> Preferencias
+            </div>
+            <div style="height:1px;background:var(--border);margin:4px 0"></div>
             <div class="user-menu-item danger" onclick="cerrarSesion(event)">
               <i class="ti ti-logout"></i> Cerrar sesión
             </div>
@@ -1351,6 +1555,21 @@ textarea.mat-input { resize: vertical; }
       </div>
 
     </div><!-- /#page-matricula -->
+
+    <!-- ── PERFIL ── -->
+    <div class="page" id="page-perfil">
+      <div id="perfil-content">
+        <div class="empty"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Cargando perfil…</div>
+      </div>
+    </div>
+
+    <!-- ── PREFERENCIAS ── -->
+    <div class="page" id="page-preferencias">
+      <div id="preferencias-content">
+        <!-- Se rellena por renderPreferencias() -->
+      </div>
+    </div>
+
   </div><!-- /.main -->
 </div><!-- /.layout #main-layout -->
 
@@ -3501,6 +3720,222 @@ document.addEventListener('click', e => {
     localStorage.removeItem('et_jrgs_session');
   }
 })();
+
+
+/* ═══════════════════════════════════════════════════════════
+   V16 — NUEVAS FUNCIONALIDADES
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Constantes de color por año (igual que la app) ─── */
+const ANO_PASTEL = {
+  '1': { bg:'#A8DFFE', text:'#073347', label:'1er Año' },
+  '2': { bg:'#A7EDD8', text:'#064033', label:'2do Año' },
+  '3': { bg:'#FDDEA0', text:'#5A3600', label:'3er Año' },
+  '4': { bg:'#C9CBFA', text:'#1e1b6b', label:'4to Año' },
+  '5': { bg:'#FAB8D8', text:'#6b1040', label:'5to Año' },
+};
+
+/* ─── PREFERENCIAS: modo asistencia (Lista/Swipe) ─── */
+const PREF_KEY = 'et_jrgs_pref_modo';
+let PREFS = { modoAsistencia: 'lista' };
+(function cargarPrefs() {
+  try {
+    const raw = localStorage.getItem(PREF_KEY);
+    if (raw) PREFS = Object.assign(PREFS, JSON.parse(raw));
+  } catch(_) {}
+})();
+function guardarPrefs() {
+  try { localStorage.setItem(PREF_KEY, JSON.stringify(PREFS)); } catch(_) {}
+}
+
+/* ─── AÑO ACTIVO (filtro global sincronizado entre páginas) ─── */
+let ANO_ACTIVO = '1';
+function setAnoActivo(ano) {
+  ANO_ACTIVO = ano;
+  ['hist-ano','est-ano','ina-ano'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = ano;
+  });
+  renderAnoActivoBanner();
+  const lbl = ANO_PASTEL[ano]?.label || (ano + '\u00b0 A\u00f1o');
+  mostrarToast('A\u00f1o activo: ' + lbl, 'sky');
+}
+
+function renderAnoActivoBanner() {
+  const cont = document.getElementById('ano-activo-banner-cont');
+  if (!cont) return;
+  const rol  = SESSION?.rol || 'invitado';
+  const mpStr = String(SESSION?.menciones_permitidas ?? '').trim();
+  const tieneMenciones = mpStr !== '' && mpStr !== 'null' && mpStr !== 'undefined';
+  const ANOS_ROL = { admin:['1','2','3','4','5'], docente_manana:['1','2','3'], docente_tarde:['4','5'], invitado:['1','2','3','4','5'] };
+  let anosBase = ANOS_ROL[rol] || ['1','2','3','4','5'];
+  if (rol.startsWith('coordinador_')) {
+    const ac = rol.replace('coordinador_','');
+    anosBase = [ac];
+    ANO_ACTIVO = ac;
+  } else if (tieneMenciones) {
+    const ae = [...new Set(mpStr.split(',').map(p=>p.trim().split(':')[1]).filter(Boolean))];
+    anosBase = anosBase.filter(a=>ae.includes(a));
+  }
+  const c = ANO_PASTEL[ANO_ACTIVO] || { bg:'#A8DFFE', text:'#073347', label: ANO_ACTIVO+'\u00b0 A\u00f1o' };
+  const chips = anosBase.length > 1
+    ? '<div class="ano-chip-selector">' +
+        anosBase.map(a => {
+          const ac = ANO_PASTEL[a];
+          const isActive = a === ANO_ACTIVO;
+          return '<div class="ano-chip' + (isActive?' active':'') + '" style="background:' + ac.bg + ';color:' + ac.text + (isActive?';border-color:'+ac.text:'') + '" onclick="setAnoActivo(\'' + a + '\')">' + ac.label + '</div>';
+        }).join('') +
+      '</div>' : '';
+  cont.innerHTML =
+    '<div class="ano-activo-banner">' +
+    '<div class="ano-activo-badge" style="background:' + c.bg + '">' +
+    '<i class="ti ti-school" style="color:' + c.text + ';font-size:20px"></i></div>' +
+    '<div><div class="ano-activo-label">A\u00f1o activo</div>' +
+    '<div class="ano-activo-valor" style="color:' + c.text + '">' + c.label + '</div></div>' +
+    chips + '</div>';
+}
+
+/* ─── PERFIL ─── */
+async function cargarPerfil() {
+  const el = document.getElementById('perfil-content');
+  const sesion = SESSION;
+  if (!sesion) { el.innerHTML = '<div class="empty"><i class="ti ti-user-off"></i>No hay sesi\u00f3n activa</div>'; return; }
+  el.innerHTML = '<div class="empty"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>Cargando\u2026</div>';
+
+  let docente = null;
+  try {
+    const res = await get('/perfil/' + encodeURIComponent(sesion.usuario));
+    if (res && res.success && res.datos) docente = res.datos;
+  } catch(_) {}
+
+  const rol = sesion.rol || 'invitado';
+  const nombre = docente ? (docente.nombre + ' ' + docente.apellido) : ((sesion.nombre + ' ' + (sesion.apellido||'')).trim());
+  const initials = ((sesion.nombre||'?')[0] + (sesion.apellido||'?')[0]).toUpperCase();
+  const rolColor = rol === 'admin' ? '#FF9500' : rol.startsWith('coordinador_') ? '#818CF8' : '#009EF7';
+  const rolIcon  = rol === 'admin' ? 'ti-shield-checkmark' : rol.startsWith('coordinador_') ? 'ti-ribbon' : 'ti-school';
+  const gradoMap = { '1':'1er','2':'2do','3':'3er','4':'4to','5':'5to' };
+  const rolLabel = rol === 'admin' ? '\ud83d\udee1\ufe0f Administrador del Sistema'
+    : rol.startsWith('coordinador_') ? '\ud83d\udccb Coordinador ' + (gradoMap[rol.replace('coordinador_','')] || '') + ' A\u00f1o'
+    : '\ud83c\udf93 Docente de Aula';
+  const rolRol = rol === 'admin' ? 'Administrador'
+    : rol.startsWith('coordinador_') ? 'Coordinador ' + (gradoMap[rol.replace('coordinador_','')] || '') + ' A\u00f1o'
+    : 'Docente';
+  const cedula  = docente?.cedula || '---';
+  const materia = docente?.materia || sesion.materia || 'No especificada';
+  const nac = docente?.nacionalidad === 'V' ? '\ud83c\uddfb\ud83c\uddea Venezolano/a'
+    : docente?.nacionalidad === 'E' ? '\ud83c\udf0d Extranjero/a' : '';
+
+  el.innerHTML =
+    '<div class="perfil-card">' +
+    '<div class="perfil-avatar-wrap">' +
+    '<div class="perfil-avatar" style="background:' + rolColor + '">' + initials +
+    '<div class="perfil-rol-badge" style="background:' + rolColor + '"><i class="ti ' + rolIcon + '" style="color:#fff;font-size:12px"></i></div></div>' +
+    '<div class="perfil-nombre">' + nombre + '</div>' +
+    '<div class="perfil-handle">' + sesion.usuario + '</div>' +
+    (nac ? '<div style="font-size:13px;color:var(--text4);font-weight:600">' + nac + '</div>' : '') +
+    '<div class="perfil-rol-pill" style="color:' + rolColor + ';background:' + rolColor + '18;border-color:' + rolColor + '40">' + rolLabel + '</div>' +
+    '</div>' +
+    '<div class="perfil-card-title">Informaci\u00f3n Personal</div>' +
+    '<div class="perfil-info-row"><div class="perfil-info-icon"><i class="ti ti-id-badge-2"></i></div>' +
+    '<div><div class="perfil-info-label">C\u00e9dula</div><div class="perfil-info-val" style="font-family:var(--mono)">' + cedula + '</div></div></div>' +
+    '<div class="perfil-info-row"><div class="perfil-info-icon"><i class="ti ti-book"></i></div>' +
+    '<div><div class="perfil-info-label">Materia</div><div class="perfil-info-val">' + materia + '</div></div></div>' +
+    '<div class="perfil-info-row"><div class="perfil-info-icon"><i class="ti ti-shield"></i></div>' +
+    '<div><div class="perfil-info-label">Rol en el sistema</div><div class="perfil-info-val">' + rolRol + '</div></div></div>' +
+    '</div>' +
+    '<div style="max-width:560px;margin:0 auto">' +
+    '<button onclick="cerrarSesion()" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(255,59,48,.3);width:100%;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">' +
+    '<i class="ti ti-logout"></i> Cerrar sesi\u00f3n</button></div>';
+}
+
+/* ─── PREFERENCIAS ─── */
+function renderPreferencias() {
+  const el = document.getElementById('preferencias-content');
+  const rol = SESSION?.rol || 'invitado';
+  const esDocente = rol === 'docente_manana' || rol === 'docente_tarde';
+  const modoHtml = esDocente
+    ? '<div class="pref-section"><div class="pref-section-title">Modo de Asistencia</div>' +
+      '<div class="pref-row">' +
+      '<div class="pref-row-left"><div class="pref-row-icon"><i class="ti ti-layers"></i></div>' +
+      '<div><div class="pref-row-label">Interfaz de pase de lista</div>' +
+      '<div class="pref-row-sub">C\u00f3mo prefer\u00eds registrar la asistencia en la app m\u00f3vil</div></div></div>' +
+      '<div class="toggle-group">' +
+      '<button class="toggle-btn' + (PREFS.modoAsistencia==='lista'?' active':'') + '" id="pref-btn-lista" onclick="setPrefModo('lista')">' +
+      '<i class="ti ti-list"></i> Lista</button>' +
+      '<button class="toggle-btn' + (PREFS.modoAsistencia==='swipe'?' active':'') + '" id="pref-btn-swipe" onclick="setPrefModo('swipe')">' +
+      '<i class="ti ti-layers-subtract"></i> Swipe</button></div></div></div>' : '';
+
+  const anoChips = Object.entries(ANO_PASTEL).map(([a,c]) =>
+    '<div class="ano-color-chip" style="background:' + c.bg + ';color:' + c.text + '">' + c.label + '</div>'
+  ).join('');
+
+  el.innerHTML = '<div style="max-width:560px;margin:0 auto">' + modoHtml +
+    '<div class="pref-section"><div class="pref-section-title">A\u00f1os Escolares</div>' +
+    '<div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:10px">' +
+    '<div class="pref-row-left"><div class="pref-row-icon"><i class="ti ti-palette"></i></div>' +
+    '<div><div class="pref-row-label">Paleta de colores por a\u00f1o</div>' +
+    '<div class="pref-row-sub">Referencia visual de la identidad de colores de la app</div></div></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px">' + anoChips + '</div></div></div>' +
+    '<div class="pref-section"><div class="pref-section-title">Acerca del sistema</div>' +
+    '<div class="pref-row"><div class="pref-row-left"><div class="pref-row-icon"><i class="ti ti-server"></i></div>' +
+    '<div><div class="pref-row-label">Servidor API</div>' +
+    '<div class="pref-row-sub" style="font-family:var(--mono);font-size:12px">' + (API || '192.168.101.8:3000') + '</div></div></div></div>' +
+    '<div class="pref-row"><div class="pref-row-left"><div class="pref-row-icon"><i class="ti ti-tag"></i></div>' +
+    '<div><div class="pref-row-label">Versi\u00f3n del dashboard</div>' +
+    '<div class="pref-row-sub">v16 \u2014 Junio 2025</div></div></div></div>' +
+    '<div class="pref-row"><div class="pref-row-left"><div class="pref-row-icon"><i class="ti ti-user"></i></div>' +
+    '<div><div class="pref-row-label">Sesi\u00f3n activa</div>' +
+    '<div class="pref-row-sub">' + (SESSION?.usuario||'---') + ' &middot; ' + (SESSION?.rol||'---') + '</div></div></div></div></div>' +
+    '</div>';
+}
+
+function setPrefModo(modo) {
+  PREFS.modoAsistencia = modo;
+  guardarPrefs();
+  const bl = document.getElementById('pref-btn-lista');
+  const bs = document.getElementById('pref-btn-swipe');
+  if (bl) bl.classList.toggle('active', modo==='lista');
+  if (bs) bs.classList.toggle('active', modo==='swipe');
+  mostrarToast('Modo "' + modo + '" guardado', 'green');
+}
+
+/* ─── NAV PATCH V16 ─── */
+Object.assign(TITLES, { perfil:'Mi perfil', preferencias:'Preferencias' });
+
+const _navToOrig = navTo;
+navTo = function(page) {
+  if (page === 'perfil' || page === 'preferencias') {
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    const navEl = document.querySelector('[data-page="' + page + '"]');
+    if (navEl) navEl.classList.add('active');
+    const pageEl = document.getElementById('page-' + page);
+    if (pageEl) pageEl.classList.add('active');
+    document.getElementById('page-title').textContent = TITLES[page] || page;
+    if (page === 'perfil') cargarPerfil();
+    if (page === 'preferencias') renderPreferencias();
+    return;
+  }
+  _navToOrig(page);
+};
+
+/* ─── Patch cargarResumen para inyectar banner de a\u00f1o activo ─── */
+const _cargarResumenOrig = cargarResumen;
+cargarResumen = async function() {
+  const resDiv = document.getElementById('resumen-content');
+  if (resDiv && !document.getElementById('ano-activo-banner-cont')) {
+    const bannerDiv = document.createElement('div');
+    bannerDiv.id = 'ano-activo-banner-cont';
+    resDiv.prepend(bannerDiv);
+  }
+  renderAnoActivoBanner();
+  await _cargarResumenOrig();
+};
+
+document.querySelectorAll('.nav-item[data-page="perfil"], .nav-item[data-page="preferencias"]').forEach(n => {
+  n.addEventListener('click', () => navTo(n.dataset.page));
+});
+
 </script>
 </body>
 </html>

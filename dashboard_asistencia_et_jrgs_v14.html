@@ -1674,7 +1674,7 @@ if (typeof Chart === 'undefined') {
 </script>
 <script>
 /* ─── CONFIG ─── */
-const API = '__API_URL__'; // ← inyectado automáticamente por el servidor Node
+const API = (function(){ const s='__API_URL__'; return (s.startsWith('__')||s==='') ? window.location.origin : s; })();
 const MENCIONES = ['Telemática','Turismo','Administración','Contabilidad'];
 const ANO_LABEL = {1:'1er Año',2:'2do Año',3:'3er Año',4:'4to Año',5:'5to Año'};
 

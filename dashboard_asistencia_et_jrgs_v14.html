@@ -1471,6 +1471,13 @@ const API = '__API_URL__'; // ← inyectado automáticamente por el servidor Nod
 const MENCIONES = ['Telemática','Turismo','Administración','Contabilidad'];
 const ANO_LABEL = {1:'1er Año',2:'2do Año',3:'3er Año',4:'4to Año',5:'5to Año'};
 
+/* Guardamos el HTML original de las páginas que se pueden "bloquear" según el rol
+   (Matrícula y Docentes), para poder restaurarlas si una sesión anterior en la misma
+   pestaña (sin permisos) las dejó bloqueadas. Así no depende de recargar la página. */
+const MATRICULA_HTML_ORIGINAL = document.getElementById('page-matricula')?.innerHTML ?? null;
+const DOCENTES_HTML_ORIGINAL  = document.getElementById('page-docentes')?.innerHTML ?? null;
+
+
 const MENCION_COLORS = {
   'Telemática':    { color:'#009EF7', dim:'rgba(0,158,247,.12)',   cls:'acc-tele'  },
   'Turismo':       { color:'#10B981', dim:'rgba(16,185,129,.12)',   cls:'acc-tur'   },
@@ -3417,6 +3424,26 @@ function aplicarPermisosPorRol(rol, sesion) {
 
   /* ── 5. Sidebar — mostrar/ocultar secciones ── */
 
+  /* Página de docentes — bloqueada solo para invitado, restaurada para el resto.
+     Esto va ANTES de ajustar la visibilidad del tab "Registro" porque
+     reemplaza el HTML completo de la página (si no, el toggle de abajo
+     quedaría pisado). */
+  {
+    const pageDoc = document.getElementById('page-docentes');
+    if (pageDoc) {
+      if (esInvitado) {
+        pageDoc.innerHTML = `
+          <div class="page-locked">
+            <i class="ti ti-lock"></i>
+            <h3>Acceso restringido</h3>
+            <p>Debes iniciar sesión con una cuenta docente o de administrador para ver el personal.</p>
+          </div>`;
+      } else if (DOCENTES_HTML_ORIGINAL !== null) {
+        pageDoc.innerHTML = DOCENTES_HTML_ORIGINAL;
+      }
+    }
+  }
+
   /* Matrícula: solo admin */
   document.getElementById('nav-sec-admin').style.display = esAdmin ? '' : 'none';
   document.getElementById('nav-matricula').style.display = esAdmin ? '' : 'none';
@@ -3448,29 +3475,25 @@ function aplicarPermisosPorRol(rol, sesion) {
     if (el) el.innerHTML = bannerDocenteHtml;
   });
 
-  /* ── 7. Página de matrícula ──
-     CRÍTICO: Si es admin, NO tocar el contenido (preservar el formulario).
-     Solo reemplazar si NO es admin. */
-  if (!esAdmin) {
+  /* ── 7. Página de matrícula ── solo admin tiene acceso.
+     Restauramos siempre el HTML correcto según el rol actual, en vez de
+     solo bloquear y nunca revertir (eso causaba que un admin se quedara
+     viendo "Acceso restringido" si antes, en la misma pestaña, había
+     iniciado sesión alguien sin permisos). */
+  {
     const pageMat = document.getElementById('page-matricula');
-    if (pageMat) pageMat.innerHTML = `
-      <div class="page-locked">
-        <i class="ti ti-lock"></i>
-        <h3>Acceso restringido</h3>
-        <p>La sección de matrícula es exclusiva para administradores del sistema.</p>
-      </div>`;
-  }
-  /* admin: page-matricula queda intacto con su formulario completo */
-
-  /* ── 8. Página de docentes — bloquear solo para invitado ── */
-  if (esInvitado) {
-    const pageDoc = document.getElementById('page-docentes');
-    if (pageDoc) pageDoc.innerHTML = `
-      <div class="page-locked">
-        <i class="ti ti-lock"></i>
-        <h3>Acceso restringido</h3>
-        <p>Debes iniciar sesión con una cuenta docente o de administrador para ver el personal.</p>
-      </div>`;
+    if (pageMat) {
+      if (esAdmin) {
+        if (MATRICULA_HTML_ORIGINAL !== null) pageMat.innerHTML = MATRICULA_HTML_ORIGINAL;
+      } else {
+        pageMat.innerHTML = `
+          <div class="page-locked">
+            <i class="ti ti-lock"></i>
+            <h3>Acceso restringido</h3>
+            <p>La sección de matrícula es exclusiva para administradores del sistema.</p>
+          </div>`;
+      }
+    }
   }
 
   /* ── 9. Resumen ── (se filtra dentro de cargarResumen según SESSION.rol) */

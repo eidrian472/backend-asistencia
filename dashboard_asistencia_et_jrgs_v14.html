@@ -947,6 +947,11 @@ textarea.mat-input { resize: vertical; }
       <div class="nav-item" data-page="matricula" id="nav-matricula" style="display:none">
         <i class="ti ti-user-plus"></i>Matrícula
       </div>
+
+      <div class="nav-section">Mi Cuenta</div>
+      <div class="nav-item" data-page="perfil" id="nav-perfil">
+        <i class="ti ti-user-circle"></i>Mi Perfil
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -1351,6 +1356,13 @@ textarea.mat-input { resize: vertical; }
       </div>
 
     </div><!-- /#page-matricula -->
+    <!-- ── PERFIL ── -->
+    <div class="page" id="page-perfil">
+      <div id="perfil-content">
+        <div class="spinner"><i class="ti ti-loader-2"></i> Cargando perfil…</div>
+      </div>
+    </div>
+
   </div><!-- /.main -->
 </div><!-- /.layout #main-layout -->
 
@@ -1750,7 +1762,7 @@ const TITLES = {
   resumen:'Resumen general', historial:'Historial de asistencias',
   estudiantes:'Gestión de estudiantes', inasistencias:'Control de inasistencias',
   estadisticas:'Estadísticas por mención', docentes:'Asistencia docente',
-  matricula:'Administrar Matrícula'
+  matricula:'Administrar Matrícula', perfil:'Mi Perfil'
 };
 function navTo(page){
   /* Bloquear páginas según rol */
@@ -1779,6 +1791,7 @@ function navTo(page){
     }
   }
   if(page==='estadisticas') cargarEstadisticas();
+  if(page==='perfil') cargarPerfil();
 }
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>navTo(n.dataset.page)));
 
@@ -1823,11 +1836,13 @@ async function cargarResumen(){
   /* Filtrar estudiantes según rol */
   const mpStr = String(SESSION?.menciones_permitidas ?? '').trim();
   const tieneMenciones = mpStr !== '' && mpStr !== 'null' && mpStr !== 'undefined';
-  const ANOS_POR_ROL = {
-    admin:'12345', docente_manana:'123', docente_tarde:'45', invitado:'12345',
-  };
-  const anosStr = ANOS_POR_ROL[rol] || '12345';
-  const anosBase = anosStr.split('').map(String);
+  /* años base según rol — coordinador_N sólo su año */
+  let anosBase;
+  if (rol === 'admin' || rol === 'invitado') anosBase = ['1','2','3','4','5'];
+  else if (rol === 'docente_manana')          anosBase = ['1','2','3'];
+  else if (rol === 'docente_tarde')           anosBase = ['4','5'];
+  else if (rol.startsWith('coordinador_'))    anosBase = [rol.replace('coordinador_','')];
+  else anosBase = ['1','2','3','4','5'];
 
   let anosPermitidos = anosBase;
   let mencionesPermitidas = MENCIONES;
@@ -1859,9 +1874,14 @@ async function cargarResumen(){
   for(let i=1;i<=5;i++) por_ano[i]=0;
   estudiantesFiltrados.forEach(e=>{ const a=Number(e.ano); if(a>=1&&a<=5) por_ano[a]++; });
 
-  /* Banner de contexto para docentes */
+  /* Banner de contexto para docentes y coordinadores */
+  const anoLblMap = {'1':'1er','2':'2do','3':'3er','4':'4to','5':'5to'};
+  const esCoordR   = rol.startsWith('coordinador_');
+  const anoCoordR  = esCoordR ? rol.replace('coordinador_','') : null;
   const turnoLabel = rol==='docente_manana' ? 'Turno Mañana · 1°, 2° y 3° Año'
-                   : rol==='docente_tarde'   ? 'Turno Tarde · 4° y 5° Año' : null;
+                   : rol==='docente_tarde'   ? 'Turno Tarde · 4° y 5° Año'
+                   : esCoordR && anoCoordR   ? `Coordinador ${anoLblMap[anoCoordR]||anoCoordR}° Año`
+                   : null;
   const bannerCtx = turnoLabel ? `
     <div class="rol-banner rol-banner-info" style="margin-bottom:20px">
       <i class="ti ti-sun"></i>
@@ -3051,6 +3071,105 @@ async function eliminarDefinitivo(cedula, nombre) {
   }
 }
 
+/* ─── PERFIL ─── */
+async function cargarPerfil() {
+  const el = document.getElementById('perfil-content');
+  if (!SESSION) return;
+  const { nombre, apellido, rol, usuario, materia } = SESSION;
+  el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Cargando perfil…</div>';
+
+  const data = await get('/perfil/' + encodeURIComponent(usuario));
+  const doc = (data && data.success) ? data.datos : null;
+
+  const esAdmin = rol === 'admin';
+  const esCoord = rol && rol.startsWith('coordinador_');
+  const rolColor = esAdmin ? '#FF9500' : esCoord ? '#818CF8' : '#009EF7';
+  const rolIcon  = esAdmin ? 'ti-shield-checkmark' : esCoord ? 'ti-ribbon' : 'ti-school';
+  const anoLbl = {'1':'1er','2':'2do','3':'3er','4':'4to','5':'5to'};
+  const anoC = esCoord ? rol.replace('coordinador_','') : null;
+  const rolTexto = esAdmin
+    ? '🛡️ Administrador del Sistema'
+    : esCoord
+      ? `📋 Coordinador ${anoLbl[anoC]||anoC}° Año`
+      : '🎓 Docente de Aula';
+
+  const nombreCompleto = doc ? `${doc.nombre} ${doc.apellido}` : (apellido ? `${nombre} ${apellido}` : nombre);
+  const cedula  = doc?.cedula  || '—';
+  const matActual = doc?.materia || materia || 'No especificada';
+  const nacionalidad = doc?.nacionalidad === 'V' ? '🇻🇪 Venezolano/a'
+                     : doc?.nacionalidad === 'E' ? '🌍 Extranjero/a' : '';
+
+  const iniciales = (doc?.nombre || nombre || '?')[0].toUpperCase() +
+                    ((doc?.apellido || apellido || '')[0]?.toUpperCase() || '');
+
+  el.innerHTML = \`
+    <div style="max-width:520px;margin:0 auto">
+      <!-- Avatar + nombre -->
+      <div class="card" style="text-align:center;padding:32px 24px 24px;margin-bottom:18px">
+        <div style="position:relative;display:inline-block;margin-bottom:18px">
+          <div style="width:88px;height:88px;border-radius:26px;background:var(--sky-dim);border:3px solid var(--accent);
+                      display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;
+                      color:var(--accent-dark);margin:0 auto">\${iniciales}</div>
+          <div style="position:absolute;bottom:-4px;right:-4px;width:30px;height:30px;border-radius:9px;
+                      background:\${rolColor};border:2px solid white;display:flex;align-items:center;justify-content:center">
+            <i class="ti \${rolIcon}" style="color:#fff;font-size:14px"></i>
+          </div>
+        </div>
+        <div style="font-size:22px;font-weight:900;color:var(--text);margin-bottom:4px">\${nombreCompleto}</div>
+        <div style="font-size:14px;color:var(--text4);margin-bottom:10px">\${usuario}</div>
+        \${nacionalidad ? \`<div style="font-size:13px;color:var(--text4);margin-bottom:10px">\${nacionalidad}</div>\` : ''}
+        <div style="display:inline-flex;align-items:center;gap:7px;background:\${rolColor}15;
+                    border:1px solid \${rolColor}40;border-radius:20px;padding:6px 16px">
+          <span style="font-size:12px;font-weight:700;color:\${rolColor}">\${rolTexto}</span>
+        </div>
+      </div>
+
+      <!-- Información personal -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="section-title"><i class="ti ti-id-badge-2"></i>Información Personal</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
+            <div style="width:36px;height:36px;border-radius:10px;background:var(--sky-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="ti ti-id-badge-2" style="color:var(--accent)"></i>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Cédula</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono)">\${cedula}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
+            <div style="width:36px;height:36px;border-radius:10px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="ti ti-book" style="color:var(--green)"></i>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Materia</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">\${matActual}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(129,140,248,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="ti ti-shield" style="color:var(--indigo)"></i>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Rol en el sistema</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">\${rolTexto.replace(/^[^a-zA-Z]+/,'')}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cerrar sesión -->
+      <div class="card" style="border-color:rgba(239,68,68,.25)">
+        <button onclick="cerrarSesion(event)" style="width:100%;padding:14px;background:rgba(255,59,48,.08);
+          color:var(--red);border:1px solid rgba(255,59,48,.25);border-radius:13px;
+          font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;
+          justify-content:center;gap:8px;font-family:var(--font)">
+          <i class="ti ti-logout"></i> Cerrar sesión
+        </button>
+      </div>
+    </div>\`;
+}
+
 /* ─── BOOT ─── */
 // cargarResumen se llama al iniciar sesión via navTo('resumen')
 </script>
@@ -3064,18 +3183,28 @@ async function eliminarDefinitivo(cedula, nombre) {
 let SESSION = null;
 
 const ROL_LABEL = {
-  admin:          'Administrador',
-  docente_manana: 'Docente — Mañana',
-  docente_tarde:  'Docente — Tarde',
-  docente:        'Docente',
-  invitado:       'Invitado'
+  admin:           'Administrador',
+  docente_manana:  'Docente — Mañana',
+  docente_tarde:   'Docente — Tarde',
+  docente:         'Docente',
+  invitado:        'Invitado',
+  coordinador_1:   'Coordinador 1er Año',
+  coordinador_2:   'Coordinador 2do Año',
+  coordinador_3:   'Coordinador 3er Año',
+  coordinador_4:   'Coordinador 4to Año',
+  coordinador_5:   'Coordinador 5to Año',
 };
 const ROL_COLOR = {
-  admin:          'role-admin',
-  docente_manana: 'role-docente',
-  docente_tarde:  'role-docente',
-  docente:        'role-docente',
-  invitado:       'role-invitado'
+  admin:           'role-admin',
+  docente_manana:  'role-docente',
+  docente_tarde:   'role-docente',
+  docente:         'role-docente',
+  invitado:        'role-invitado',
+  coordinador_1:   'role-docente',
+  coordinador_2:   'role-docente',
+  coordinador_3:   'role-docente',
+  coordinador_4:   'role-docente',
+  coordinador_5:   'role-docente',
 };
 
 /* toggle-pass: movido al final del script */
@@ -3181,8 +3310,22 @@ function iniciarSesion(sesion) {
   document.getElementById('sidebar-rol').textContent    = ROL_LABEL[rol]||rol;
 
   /* Topbar label */
-  const labels = { admin:'Panel Administrativo', docente_manana:'Portal Docente — Turno Mañana', docente_tarde:'Portal Docente — Turno Tarde', invitado:'Modo Lectura' };
-  document.getElementById('topbar-label').textContent = labels[rol] || (rol.startsWith('docente')?'Portal Docente':'Panel');
+  const esCoord = rol.startsWith('coordinador_');
+  const anoCoord = esCoord ? rol.replace('coordinador_','') : null;
+  const anoLabel = {'1':'1er','2':'2do','3':'3er','4':'4to','5':'5to'};
+  const labels = {
+    admin:'Panel Administrativo',
+    docente_manana:'Portal Docente — Turno Mañana',
+    docente_tarde:'Portal Docente — Turno Tarde',
+    invitado:'Modo Lectura'
+  };
+  let topLabel = labels[rol];
+  if (!topLabel) {
+    if (esCoord) topLabel = `Coordinador ${anoLabel[anoCoord]||anoCoord}° Año`;
+    else if (rol.startsWith('docente')) topLabel = 'Portal Docente';
+    else topLabel = 'Panel';
+  }
+  document.getElementById('topbar-label').textContent = topLabel;
 
   /* Permisos por rol */
   aplicarPermisosPorRol(rol, sesion);
@@ -3195,27 +3338,31 @@ function iniciarSesion(sesion) {
    SISTEMA DE PERMISOS POR ROL
    ────────────────────────────────────────────────
    admin          → todo + matrícula + docentes completo
+   coordinador_N  → solo su año, sin matrícula
    docente_manana → años 1-3 ∩ menciones_permitidas
    docente_tarde  → años 4-5 ∩ menciones_permitidas
-   invitado       → solo lectura (resumen, historial, estudiantes, estadísticas)
-                    sin matrícula, sin docentes
+   invitado       → solo lectura, sin matrícula, sin docentes
    ════════════════════════════════════════════════ */
 function aplicarPermisosPorRol(rol, sesion) {
   const mpStr = String(sesion.menciones_permitidas ?? '').trim();
   const tieneMenciones = mpStr !== '' && mpStr !== 'null' && mpStr !== 'undefined';
 
-  /* ── 1. Años permitidos según rol ── */
-  const ANOS_POR_ROL = {
-    admin:          ['1','2','3','4','5'],
-    docente_manana: ['1','2','3'],
-    docente_tarde:  ['4','5'],
-    invitado:       ['1','2','3','4','5'],
-  };
-  const anosBase = ANOS_POR_ROL[rol] || ['1','2','3','4','5'];
+  const esAdmin    = rol === 'admin';
+  const esInvitado = rol === 'invitado';
+  const esCoord    = rol.startsWith('coordinador_');
+  const anoCoord   = esCoord ? rol.replace('coordinador_','') : null;
 
-  /* Si tiene menciones_permitidas, intersectar años */
+  /* ── 1. Años permitidos según rol ── */
+  let anosBase;
+  if (esAdmin || esInvitado) anosBase = ['1','2','3','4','5'];
+  else if (rol === 'docente_manana') anosBase = ['1','2','3'];
+  else if (rol === 'docente_tarde')  anosBase = ['4','5'];
+  else if (esCoord && anoCoord)      anosBase = [anoCoord];
+  else anosBase = ['1','2','3','4','5'];
+
+  /* Si tiene menciones_permitidas y NO es coordinador, intersectar años */
   let anosPermitidos = anosBase;
-  if (tieneMenciones) {
+  if (tieneMenciones && !esCoord) {
     const anosEnMenciones = [...new Set(
       mpStr.split(',').map(p => p.trim().split(':')[1]).filter(Boolean)
     )];
@@ -3237,10 +3384,9 @@ function aplicarPermisosPorRol(rol, sesion) {
     const sel = document.getElementById(selId);
     if (!sel) return;
     Array.from(sel.options).forEach(opt => {
-      if (!opt.value) return; // "Todos" siempre visible
+      if (!opt.value) return;
       opt.hidden = !anosPermitidos.includes(opt.value);
     });
-    /* Si el valor actual quedó fuera, resetear */
     if (sel.value && !anosPermitidos.includes(sel.value)) sel.value = '';
   });
 
@@ -3253,7 +3399,6 @@ function aplicarPermisosPorRol(rol, sesion) {
       opt.hidden = !mencionesPermitidas.includes(opt.value);
     });
     if (sel.value && !mencionesPermitidas.includes(sel.value)) sel.value = '';
-    /* En estadísticas, setear la primera mención permitida */
     if (selId === 'stat-mencion' && !sel.value) {
       const primerOpt = Array.from(sel.options).find(o => !o.hidden && o.value);
       if (primerOpt) sel.value = primerOpt.value;
@@ -3261,36 +3406,31 @@ function aplicarPermisosPorRol(rol, sesion) {
   });
 
   /* ── 5. Sidebar — mostrar/ocultar secciones ── */
-  const esAdmin    = rol === 'admin';
-  const esDocente  = rol === 'docente_manana' || rol === 'docente_tarde';
-  const esInvitado = rol === 'invitado';
 
   /* Matrícula: solo admin */
-  document.getElementById('nav-sec-admin').style.display  = esAdmin ? '' : 'none';
-  document.getElementById('nav-matricula').style.display  = esAdmin ? '' : 'none';
+  document.getElementById('nav-sec-admin').style.display = esAdmin ? '' : 'none';
+  document.getElementById('nav-matricula').style.display = esAdmin ? '' : 'none';
 
-  /* Tab "Registrar asistencia" en la página de docentes: solo admin */
+  /* Tab "Registrar asistencia": solo admin */
   const tabReg = document.getElementById('doc-tab-registro');
   if (tabReg) tabReg.style.display = esAdmin ? '' : 'none';
 
-  /* Docentes: admin y docentes pueden ver, invitado no */
+  /* Docentes nav: visible a todos menos invitado */
   const navDocentes = document.getElementById('nav-docentes');
-  if (esInvitado) {
-    navDocentes.classList.add('nav-locked');
-  } else {
-    navDocentes.classList.remove('nav-locked');
-  }
+  if (esInvitado) navDocentes.classList.add('nav-locked');
+  else            navDocentes.classList.remove('nav-locked');
 
   /* ── 6. Banners informativos en páginas ── */
-  const turno = rol === 'docente_manana' ? 'Turno Mañana (1°–3°)'
-              : rol === 'docente_tarde'   ? 'Turno Tarde (4°–5°)'
-              : null;
+  const anoLabelMap = {'1':'1er','2':'2do','3':'3er','4':'4to','5':'5to'};
+  let turno = null;
+  if (rol === 'docente_manana')    turno = 'Turno Mañana (1°–3°)';
+  else if (rol === 'docente_tarde') turno = 'Turno Tarde (4°–5°)';
+  else if (esCoord && anoCoord)     turno = `Coordinador ${anoLabelMap[anoCoord]||anoCoord}° Año`;
 
-  /* Banner para historial/estudiantes/inasistencias si es docente con filtro */
   const bannerDocenteHtml = turno ? `
     <div class="rol-banner rol-banner-info">
       <i class="ti ti-info-circle"></i>
-      Mostrando datos de tu turno: <strong>${turno}</strong>${tieneMenciones ? ` · Menciones: <strong>${mencionesPermitidas.join(', ')}</strong>` : ''}
+      Mostrando datos de: <strong>${turno}</strong>${tieneMenciones ? ` · Menciones: <strong>${mencionesPermitidas.join(', ')}</strong>` : ''}
     </div>` : '';
 
   ['historial','estudiantes','estadisticas'].forEach(pid => {
@@ -3298,21 +3438,24 @@ function aplicarPermisosPorRol(rol, sesion) {
     if (el) el.innerHTML = bannerDocenteHtml;
   });
 
-  /* ── 7. Página de matrícula — bloquear si no es admin ── */
+  /* ── 7. Página de matrícula ──
+     CRÍTICO: Si es admin, NO tocar el contenido (preservar el formulario).
+     Solo reemplazar si NO es admin. */
   if (!esAdmin) {
     const pageMat = document.getElementById('page-matricula');
-    pageMat.innerHTML = `
+    if (pageMat) pageMat.innerHTML = `
       <div class="page-locked">
         <i class="ti ti-lock"></i>
         <h3>Acceso restringido</h3>
         <p>La sección de matrícula es exclusiva para administradores del sistema.</p>
       </div>`;
   }
+  /* admin: page-matricula queda intacto con su formulario completo */
 
   /* ── 8. Página de docentes — bloquear solo para invitado ── */
   if (esInvitado) {
     const pageDoc = document.getElementById('page-docentes');
-    pageDoc.innerHTML = `
+    if (pageDoc) pageDoc.innerHTML = `
       <div class="page-locked">
         <i class="ti ti-lock"></i>
         <h3>Acceso restringido</h3>
@@ -3320,14 +3463,9 @@ function aplicarPermisosPorRol(rol, sesion) {
       </div>`;
   }
 
-  /* ── 9. Resumen — si es invitado, ocultar métricas sensibles ── */
-  if (esInvitado) {
-    /* Se maneja al renderizar cargarResumen con flag SESSION.rol */
-  }
+  /* ── 9. Resumen ── (se filtra dentro de cargarResumen según SESSION.rol) */
 
-  /* ── 10. Bloquear acciones de escritura para no-admin ── */
-  /* Botones de matrícula ya bloqueados por el HTML replacement arriba */
-  /* Para invitado: marcar todas las páginas de escritura como solo-lectura */
+  /* ── 10. Bloquear botones extra para invitado ── */
   if (esInvitado) {
     ['btn-ingresar'].forEach(id => {
       const el = document.getElementById(id);

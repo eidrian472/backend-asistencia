@@ -3102,25 +3102,25 @@ async function cargarPerfil() {
   const iniciales = (doc?.nombre || nombre || '?')[0].toUpperCase() +
                     ((doc?.apellido || apellido || '')[0]?.toUpperCase() || '');
 
-  el.innerHTML = \`
+  el.innerHTML = `
     <div style="max-width:520px;margin:0 auto">
       <!-- Avatar + nombre -->
       <div class="card" style="text-align:center;padding:32px 24px 24px;margin-bottom:18px">
         <div style="position:relative;display:inline-block;margin-bottom:18px">
           <div style="width:88px;height:88px;border-radius:26px;background:var(--sky-dim);border:3px solid var(--accent);
                       display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;
-                      color:var(--accent-dark);margin:0 auto">\${iniciales}</div>
+                      color:var(--accent-dark);margin:0 auto">${iniciales}</div>
           <div style="position:absolute;bottom:-4px;right:-4px;width:30px;height:30px;border-radius:9px;
-                      background:\${rolColor};border:2px solid white;display:flex;align-items:center;justify-content:center">
-            <i class="ti \${rolIcon}" style="color:#fff;font-size:14px"></i>
+                      background:${rolColor};border:2px solid white;display:flex;align-items:center;justify-content:center">
+            <i class="ti ${rolIcon}" style="color:#fff;font-size:14px"></i>
           </div>
         </div>
-        <div style="font-size:22px;font-weight:900;color:var(--text);margin-bottom:4px">\${nombreCompleto}</div>
-        <div style="font-size:14px;color:var(--text4);margin-bottom:10px">\${usuario}</div>
-        \${nacionalidad ? \`<div style="font-size:13px;color:var(--text4);margin-bottom:10px">\${nacionalidad}</div>\` : ''}
-        <div style="display:inline-flex;align-items:center;gap:7px;background:\${rolColor}15;
-                    border:1px solid \${rolColor}40;border-radius:20px;padding:6px 16px">
-          <span style="font-size:12px;font-weight:700;color:\${rolColor}">\${rolTexto}</span>
+        <div style="font-size:22px;font-weight:900;color:var(--text);margin-bottom:4px">${nombreCompleto}</div>
+        <div style="font-size:14px;color:var(--text4);margin-bottom:10px">${usuario}</div>
+        ${nacionalidad ? `<div style="font-size:13px;color:var(--text4);margin-bottom:10px">${nacionalidad}</div>` : ''}
+        <div style="display:inline-flex;align-items:center;gap:7px;background:${rolColor}15;
+                    border:1px solid ${rolColor}40;border-radius:20px;padding:6px 16px">
+          <span style="font-size:12px;font-weight:700;color:${rolColor}">${rolTexto}</span>
         </div>
       </div>
 
@@ -3134,7 +3134,7 @@ async function cargarPerfil() {
             </div>
             <div>
               <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Cédula</div>
-              <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono)">\${cedula}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono)">${cedula}</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
@@ -3143,7 +3143,7 @@ async function cargarPerfil() {
             </div>
             <div>
               <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Materia</div>
-              <div style="font-size:14px;font-weight:700;color:var(--text)">\${matActual}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${matActual}</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
@@ -3152,7 +3152,7 @@ async function cargarPerfil() {
             </div>
             <div>
               <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Rol en el sistema</div>
-              <div style="font-size:14px;font-weight:700;color:var(--text)">\${rolTexto.replace(/^[^a-zA-Z]+/,'')}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${rolTexto.replace(/^[^a-zA-Z]+/,'')}</div>
             </div>
           </div>
         </div>
@@ -3167,7 +3167,7 @@ async function cargarPerfil() {
           <i class="ti ti-logout"></i> Cerrar sesión
         </button>
       </div>
-    </div>\`;
+    </div>`;
 }
 
 /* ─── BOOT ─── */

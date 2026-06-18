@@ -2385,13 +2385,39 @@ function exportarEstadisticasExcel() {
 }
 
 /* ─── DOCENTES ─── */
+/* Filtra la lista de docentes para la sección "Asistencia de Docentes":
+   - Nunca se muestran coordinadores (solo deben verse docentes reales).
+   - Si quien está viendo es coordinador, solo ve el turno que le corresponde:
+     coordinador de 1°, 2° o 3° Año → docentes de la mañana
+     coordinador de 4° o 5° Año     → docentes de la tarde */
+function filtrarDocentesParaAsistencia(docList) {
+  if (!Array.isArray(docList)) return docList;
+
+  let lista = docList.filter(d => !(d.rol && d.rol.startsWith('coordinador_')));
+
+  const rolSesion = (SESSION && SESSION.rol) || '';
+  if (rolSesion.startsWith('coordinador_')) {
+    const ano = parseInt(rolSesion.replace('coordinador_', ''), 10);
+    const turnoEsperado = (ano >= 1 && ano <= 3) ? 'docente_manana' : 'docente_tarde';
+    lista = lista.filter(d => d.rol === turnoEsperado);
+  }
+
+  return lista;
+}
+
 async function cargarDocentes(){
   const hoy = new Date();
   document.getElementById('doc-fecha-hoy').textContent =
     fmtFecha(hoy);
-  const [docList, hoyData] = await Promise.all([
+  const [docListRaw, hoyDataRaw] = await Promise.all([
     get('/admin/docentes'), get('/asistencia-docentes/hoy')
   ]);
+
+  const docList = filtrarDocentesParaAsistencia(docListRaw);
+  const idsPermitidos = Array.isArray(docList) ? new Set(docList.map(d => d.id)) : null;
+  const hoyData = (idsPermitidos && Array.isArray(hoyDataRaw))
+    ? hoyDataRaw.filter(a => idsPermitidos.has(a.docente_id))
+    : hoyDataRaw;
 
   const docEl = document.getElementById('doc-tabla');
   if(esError(docList)){ docEl.innerHTML = htmlError(docList, { 404:'No se encontraron docentes registrados' }); }
@@ -2572,9 +2598,11 @@ async function cargarRegistroDocentes() {
   const el = document.getElementById('doc-reg-lista');
   el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Cargando docentes…</div>';
 
-  const [docList, hoyData] = await Promise.all([
+  const [docListRaw, hoyDataRaw] = await Promise.all([
     get('/admin/docentes'), get('/asistencia-docentes/hoy')
   ]);
+
+  const docList = filtrarDocentesParaAsistencia(docListRaw);
 
   if (!docList || docList.length === 0) {
     el.innerHTML = '<div class="empty"><i class="ti ti-users"></i>No hay docentes registrados</div>';
@@ -2583,8 +2611,10 @@ async function cargarRegistroDocentes() {
 
   _docList = docList;
 
-  /* Precargar registros de hoy si ya existen */
+  /* Precargar registros de hoy si ya existen (solo para docentes visibles) */
   _docRegistros = {};
+  const idsPermitidos = new Set(docList.map(d => d.id));
+  const hoyData = Array.isArray(hoyDataRaw) ? hoyDataRaw.filter(r => idsPermitidos.has(r.docente_id)) : hoyDataRaw;
   if (hoyData) {
     hoyData.forEach(r => {
       _docRegistros[r.docente_id] = {

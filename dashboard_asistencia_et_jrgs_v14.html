@@ -3133,70 +3133,48 @@ async function cargarPerfil() {
                     ((doc?.apellido || apellido || '')[0]?.toUpperCase() || '');
 
   el.innerHTML = `
-    <div style="max-width:520px;margin:0 auto">
-      <!-- Avatar + nombre -->
-      <div class="card" style="text-align:center;padding:32px 24px 24px;margin-bottom:18px">
-        <div style="position:relative;display:inline-block;margin-bottom:18px">
-          <div style="width:88px;height:88px;border-radius:26px;background:var(--sky-dim);border:3px solid var(--accent);
-                      display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;
-                      color:var(--accent-dark);margin:0 auto">${iniciales}</div>
-          <div style="position:absolute;bottom:-4px;right:-4px;width:30px;height:30px;border-radius:9px;
-                      background:${rolColor};border:2px solid white;display:flex;align-items:center;justify-content:center">
-            <i class="ti ${rolIcon}" style="color:#fff;font-size:14px"></i>
-          </div>
-        </div>
-        <div style="font-size:22px;font-weight:900;color:var(--text);margin-bottom:4px">${nombreCompleto}</div>
-        <div style="font-size:14px;color:var(--text4);margin-bottom:10px">${usuario}</div>
-        ${nacionalidad ? `<div style="font-size:13px;color:var(--text4);margin-bottom:10px">${nacionalidad}</div>` : ''}
-        <div style="display:inline-flex;align-items:center;gap:7px;background:${rolColor}15;
-                    border:1px solid ${rolColor}40;border-radius:20px;padding:6px 16px">
-          <span style="font-size:12px;font-weight:700;color:${rolColor}">${rolTexto}</span>
-        </div>
+    <!-- Encabezado de perfil -->
+    <div class="card" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <div style="width:64px;height:64px;border-radius:18px;background:var(--sky-dim);border:2px solid var(--accent);
+                  display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;
+                  color:var(--accent-dark);flex-shrink:0">${iniciales}</div>
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:19px;font-weight:900;color:var(--text)">${nombreCompleto}</div>
+        <div style="font-size:13px;color:var(--text4);margin-top:2px">${usuario}${nacionalidad ? ' · '+nacionalidad : ''}</div>
       </div>
+      <div style="display:inline-flex;align-items:center;gap:7px;background:${rolColor}15;
+                  border:1px solid ${rolColor}40;border-radius:20px;padding:7px 16px;flex-shrink:0">
+        <i class="ti ${rolIcon}" style="color:${rolColor};font-size:14px"></i>
+        <span style="font-size:12px;font-weight:700;color:${rolColor}">${rolTexto}</span>
+      </div>
+    </div>
 
-      <!-- Información personal -->
-      <div class="card" style="margin-bottom:18px">
-        <div class="section-title"><i class="ti ti-id-badge-2"></i>Información Personal</div>
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
-            <div style="width:36px;height:36px;border-radius:10px;background:var(--sky-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <i class="ti ti-id-badge-2" style="color:var(--accent)"></i>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Cédula</div>
-              <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono)">${cedula}</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
-            <div style="width:36px;height:36px;border-radius:10px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <i class="ti ti-book" style="color:var(--green)"></i>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Materia</div>
-              <div style="font-size:14px;font-weight:700;color:var(--text)">${matActual}</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border-radius:14px;border:1px solid var(--border)">
-            <div style="width:36px;height:36px;border-radius:10px;background:rgba(129,140,248,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <i class="ti ti-shield" style="color:var(--indigo)"></i>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:800;color:var(--text4);letter-spacing:.7px;text-transform:uppercase;margin-bottom:2px">Rol en el sistema</div>
-              <div style="font-size:14px;font-weight:700;color:var(--text)">${rolTexto.replace(/^[^a-zA-Z]+/,'')}</div>
-            </div>
-          </div>
-        </div>
+    <!-- Información personal -->
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--sky-dim);color:var(--accent)"><i class="ti ti-id-badge-2"></i></div>
+        <div class="metric-label">Cédula</div>
+        <div class="metric-val" style="font-size:18px;font-family:var(--mono)">${cedula}</div>
       </div>
+      <div class="metric">
+        <div class="metric-icon" style="background:var(--green-dim);color:var(--green)"><i class="ti ti-book"></i></div>
+        <div class="metric-label">Materia</div>
+        <div class="metric-val" style="font-size:18px">${matActual}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-icon" style="background:rgba(129,140,248,.12);color:var(--indigo)"><i class="ti ti-shield"></i></div>
+        <div class="metric-label">Rol en el sistema</div>
+        <div class="metric-val" style="font-size:18px">${rolTexto.replace(/^[^a-zA-Z]+/,'')}</div>
+      </div>
+    </div>
 
-      <!-- Cerrar sesión -->
-      <div class="card" style="border-color:rgba(239,68,68,.25)">
-        <button onclick="cerrarSesion(event)" style="width:100%;padding:14px;background:rgba(255,59,48,.08);
-          color:var(--red);border:1px solid rgba(255,59,48,.25);border-radius:13px;
-          font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;
-          justify-content:center;gap:8px;font-family:var(--font)">
-          <i class="ti ti-logout"></i> Cerrar sesión
-        </button>
+    <!-- Sesión -->
+    <div class="card" style="border-color:rgba(239,68,68,.25);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+      <div>
+        <div class="section-title" style="margin-bottom:4px"><i class="ti ti-logout"></i>Sesión</div>
+        <div style="font-size:13px;color:var(--text3)">Cierra tu sesión en este dispositivo.</div>
       </div>
+      <button class="btn btn-danger" onclick="cerrarSesion(event)"><i class="ti ti-logout"></i> Cerrar sesión</button>
     </div>`;
 }
 
@@ -3333,11 +3311,13 @@ function iniciarSesion(sesion) {
   av.textContent = nombre[0].toUpperCase();
   av.className = 'user-chip-avatar ' + (ROL_COLOR[rol]||'role-invitado');
   document.getElementById('chip-name').textContent = nombreCompleto;
-  document.getElementById('chip-role').textContent = ROL_LABEL[rol]||rol;
+  /* El rol ya no se muestra aquí — solo en la página "Mi Perfil" */
+  document.getElementById('chip-role').style.display = 'none';
 
   /* Sidebar */
   document.getElementById('sidebar-nombre').textContent = nombreCompleto;
-  document.getElementById('sidebar-rol').textContent    = ROL_LABEL[rol]||rol;
+  /* El rol ya no se muestra aquí — solo en la página "Mi Perfil" */
+  document.getElementById('sidebar-rol').style.display = 'none';
 
   /* Topbar label */
   const esCoord = rol.startsWith('coordinador_');

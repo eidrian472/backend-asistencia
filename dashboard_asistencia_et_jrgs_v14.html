@@ -947,6 +947,9 @@ textarea.mat-input { resize: vertical; }
       <div class="nav-item" data-page="matricula" id="nav-matricula" style="display:none">
         <i class="ti ti-user-plus"></i>Matrícula
       </div>
+      <div class="nav-item" data-page="bitacora" id="nav-bitacora" style="display:none">
+        <i class="ti ti-clipboard-list"></i>Bitácora
+      </div>
 
       <div class="nav-section">Mi Cuenta</div>
       <div class="nav-item" data-page="perfil" id="nav-perfil">
@@ -1356,6 +1359,24 @@ textarea.mat-input { resize: vertical; }
       </div>
 
     </div><!-- /#page-matricula -->
+
+    <!-- ── BITÁCORA DIARIA (solo admin) ── -->
+    <div class="page" id="page-bitacora">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label style="font-size:13px;font-weight:600;color:var(--text2)">Fecha:</label>
+          <input type="date" id="bit-fecha" style="border:1.5px solid var(--border);background:var(--surface2);color:var(--text);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600" />
+        </div>
+        <button class="btn" id="btn-export-bitacora" onclick="exportarBitacoraExcel()"
+          style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:#10B981;font-weight:700;gap:6px;display:none">
+          <i class="ti ti-file-spreadsheet"></i> Exportar Bitácora .xlsx
+        </button>
+      </div>
+      <div id="bit-content">
+        <div class="warn-box" style="gap:8px"><i class="ti ti-calendar-search"></i>Selecciona una fecha para cargar la bitácora del día.</div>
+      </div>
+    </div><!-- /#page-bitacora -->
+
     <!-- ── PERFIL ── -->
     <div class="page" id="page-perfil">
       <div id="perfil-content">
@@ -1769,7 +1790,7 @@ const TITLES = {
   resumen:'Resumen general', historial:'Historial de asistencias',
   estudiantes:'Gestión de estudiantes', inasistencias:'Control de inasistencias',
   estadisticas:'Estadísticas por mención', docentes:'Asistencia docente',
-  matricula:'Administrar Matrícula', perfil:'Mi Perfil'
+  matricula:'Administrar Matrícula', perfil:'Mi Perfil', bitacora:'Bitácora Diaria'
 };
 function navTo(page){
   /* Bloquear páginas según rol */
@@ -1778,6 +1799,7 @@ function navTo(page){
   const esInvitado = rol === 'invitado';
 
   if (page === 'matricula' && !esAdmin)  return;
+  if (page === 'bitacora'  && !esAdmin)  return;
   if (page === 'docentes'  && esInvitado) return;
 
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1799,6 +1821,11 @@ function navTo(page){
   }
   if(page==='estadisticas') cargarEstadisticas();
   if(page==='perfil') cargarPerfil();
+  if(page==='bitacora') {
+    const hoyVe = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'})).toISOString().split('T')[0];
+    const inp = document.getElementById('bit-fecha');
+    if(inp && !inp.value){ inp.value = hoyVe; cargarBitacora(); }
+  }
 }
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>navTo(n.dataset.page)));
 
@@ -3447,6 +3474,7 @@ function aplicarPermisosPorRol(rol, sesion) {
   /* Matrícula: solo admin */
   document.getElementById('nav-sec-admin').style.display = esAdmin ? '' : 'none';
   document.getElementById('nav-matricula').style.display = esAdmin ? '' : 'none';
+  document.getElementById('nav-bitacora').style.display  = esAdmin ? '' : 'none';
 
   /* Tab "Registrar asistencia": solo admin */
   const tabReg = document.getElementById('doc-tab-registro');
@@ -3672,6 +3700,201 @@ document.addEventListener('click', e => {
     localStorage.removeItem('et_jrgs_session');
   }
 })();
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BITÁCORA DIARIA (solo admin)
+───────────────────────────────────────────────────────────────────────────── */
+let _bitacoraData = null;
+
+async function cargarBitacora() {
+  const fecha = document.getElementById('bit-fecha').value;
+  if (!fecha) return;
+  const el     = document.getElementById('bit-content');
+  const btnExp = document.getElementById('btn-export-bitacora');
+  btnExp.style.display = 'none';
+  el.innerHTML = '<div class="spinner"><i class="ti ti-loader-2"></i> Cargando bitácora…</div>';
+
+  const data = await get(`/admin/bitacora?fecha=${fecha}`);
+  if (esError(data)) { el.innerHTML = htmlError(data); return; }
+
+  _bitacoraData = data;
+  const { docentes, asistencia_estudiantes, nuevos_estudiantes } = data;
+  const vacio = docentes.length === 0 && asistencia_estudiantes.length === 0 && nuevos_estudiantes.length === 0;
+
+  if (vacio) {
+    el.innerHTML = `<div class="warn-box"><i class="ti ti-inbox-off"></i>No hay actividad registrada para el <strong>${fecha}</strong>.</div>`;
+    return;
+  }
+
+  const ANO_BIT = {'1':'1er Año','2':'2do Año','3':'3er Año','4':'4to Año','5':'5to Año'};
+
+  /* ── Sección 1: Asistencia Docentes ── */
+  let h1 = `<div class="card" style="margin-bottom:20px">
+    <div class="card-header" style="display:flex;align-items:center;gap:8px">
+      <i class="ti ti-chalkboard-teacher" style="color:var(--accent-dark)"></i>
+      <strong>Asistencia Docentes</strong>
+      <span class="pill pill-sky" style="margin-left:auto">${docentes.length} registros</span>
+    </div>`;
+  if (docentes.length === 0) {
+    h1 += `<div style="padding:16px;color:var(--text3);font-size:13px">Sin registros de asistencia docente para esta fecha.</div>`;
+  } else {
+    h1 += `<div style="overflow-x:auto"><table class="tabla"><thead><tr>
+      <th>#</th><th>Docente</th><th>Cédula</th><th>Materia</th><th>Estado</th><th>Bloque</th><th>Observaciones</th>
+    </tr></thead><tbody>`;
+    docentes.forEach((d, i) => {
+      h1 += `<tr>
+        <td>${i+1}</td>
+        <td>${d.apellido||''}, ${d.nombre||''}</td>
+        <td>${d.cedula||'—'}</td>
+        <td>${d.materia||'Sin materia'}</td>
+        <td>${pill(d.estado)}</td>
+        <td>${d.bloque_clase||'—'}</td>
+        <td style="max-width:200px;font-size:12px;color:var(--text2)">${d.observaciones||'—'}</td>
+      </tr>`;
+    });
+    h1 += `</tbody></table></div>`;
+  }
+  h1 += `</div>`;
+
+  /* ── Sección 2: Asistencia Estudiantes ── */
+  let h2 = `<div class="card" style="margin-bottom:20px">
+    <div class="card-header" style="display:flex;align-items:center;gap:8px">
+      <i class="ti ti-users" style="color:var(--accent)"></i>
+      <strong>Asistencia Estudiantes</strong>
+      <span class="pill pill-sky" style="margin-left:auto">${asistencia_estudiantes.length} registros</span>
+    </div>`;
+  if (asistencia_estudiantes.length === 0) {
+    h2 += `<div style="padding:16px;color:var(--text3);font-size:13px">Sin registros de asistencia estudiantil para esta fecha.</div>`;
+  } else {
+    h2 += `<div style="overflow-x:auto"><table class="tabla"><thead><tr>
+      <th>#</th><th>Nombre</th><th>Apellido</th><th>Mención</th><th>Año</th><th>Materia</th><th>Estado</th><th>Obs.</th>
+    </tr></thead><tbody>`;
+    asistencia_estudiantes.forEach((e, i) => {
+      h2 += `<tr>
+        <td>${e.nro_lista||i+1}</td>
+        <td>${e.nombre||''}</td>
+        <td>${e.apellido||''}</td>
+        <td>${e.mencion||'—'}</td>
+        <td>${ANO_BIT[e.grado]||e.grado||'—'}</td>
+        <td>${e.materia||'—'}</td>
+        <td>${pill(e.estado)}</td>
+        <td style="max-width:160px;font-size:12px;color:var(--text2)">${e.observaciones||'—'}</td>
+      </tr>`;
+    });
+    h2 += `</tbody></table></div>`;
+  }
+  h2 += `</div>`;
+
+  /* ── Sección 3: Nuevos Estudiantes ── */
+  let h3 = `<div class="card" style="margin-bottom:20px">
+    <div class="card-header" style="display:flex;align-items:center;gap:8px">
+      <i class="ti ti-user-plus" style="color:#10B981"></i>
+      <strong>Estudiantes Registrados ese Día</strong>
+      <span class="pill pill-green" style="margin-left:auto">${nuevos_estudiantes.length} nuevos</span>
+    </div>`;
+  if (nuevos_estudiantes.length === 0) {
+    h3 += `<div style="padding:16px;color:var(--text3);font-size:13px">No se registró ningún estudiante nuevo en esta fecha.</div>`;
+  } else {
+    h3 += `<div style="overflow-x:auto"><table class="tabla"><thead><tr>
+      <th>#</th><th>Nombre</th><th>Apellido</th><th>Cédula</th><th>Mención</th><th>Año</th><th>Sección</th>
+    </tr></thead><tbody>`;
+    nuevos_estudiantes.forEach((e, i) => {
+      h3 += `<tr>
+        <td>${e.nro_lista||i+1}</td>
+        <td>${e.nombre||''}</td>
+        <td>${e.apellido||''}</td>
+        <td>${e.cedula||'—'}</td>
+        <td>${e.mencion||'—'}</td>
+        <td>${ANO_BIT[e.grado]||e.grado||'—'}</td>
+        <td>${e.seccion||'—'}</td>
+      </tr>`;
+    });
+    h3 += `</tbody></table></div>`;
+  }
+  h3 += `</div>`;
+
+  el.innerHTML = h1 + h2 + h3;
+  btnExp.style.display = '';
+}
+
+function exportarBitacoraExcel() {
+  if (!_bitacoraData) return;
+  const { fecha, docentes, asistencia_estudiantes, nuevos_estudiantes } = _bitacoraData;
+  const fechaFmt = new Date(fecha + 'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const hoyFmt   = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const ANO_BIT  = {'1':'1er Año','2':'2do Año','3':'3er Año','4':'4to Año','5':'5to Año'};
+
+  const wb = XLSX.utils.book_new();
+
+  /* ── Hoja 1: Asistencia Docentes ── */
+  const wsDocData = [
+    ['E.T. J.R.G.S — BITÁCORA DIARIA'],
+    ['Institución:','E.T. José Ricardo Guillén Suárez'],
+    ['Sección:','Asistencia Docentes'],
+    ['Fecha:',fechaFmt],
+    ['Exportado:',hoyFmt],
+    [],
+    ['#','Apellido','Nombre','Cédula','Materia','Estado','Bloque','Observaciones'],
+    ...docentes.map((d,i)=>[i+1,d.apellido||'',d.nombre||'',d.cedula||'',d.materia||'Sin materia',d.estado||'',d.bloque_clase||'',d.observaciones||'']),
+    [],
+    ['','RESUMEN'],
+    ['','Presentes:',  docentes.filter(d=>d.estado==='Presente').length],
+    ['','Ausentes:',   docentes.filter(d=>d.estado==='Ausente').length],
+    ['','Total:',      docentes.length],
+  ];
+  const wsDoc = XLSX.utils.aoa_to_sheet(wsDocData);
+  wsDoc['!cols'] = [{wch:4},{wch:22},{wch:22},{wch:12},{wch:18},{wch:12},{wch:14},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, wsDoc, 'Asistencia Docentes');
+
+  /* ── Hoja 2: Asistencia Estudiantes ── */
+  const wsEstData = [
+    ['E.T. J.R.G.S — BITÁCORA DIARIA'],
+    ['Institución:','E.T. José Ricardo Guillén Suárez'],
+    ['Sección:','Asistencia Estudiantes'],
+    ['Fecha:',fechaFmt],
+    ['Exportado:',hoyFmt],
+    [],
+    ['#','Nombre','Apellido','Mención','Año','Materia','Estado','Observaciones'],
+    ...asistencia_estudiantes.map((e,i)=>[
+      e.nro_lista||i+1, e.nombre||'', e.apellido||'',
+      e.mencion||'', ANO_BIT[e.grado]||e.grado||'',
+      e.materia||'', e.estado||'', e.observaciones||''
+    ]),
+    [],
+    ['','RESUMEN'],
+    ['','Asistidos:',    asistencia_estudiantes.filter(e=>e.estado==='Asistido').length],
+    ['','Inasistentes:', asistencia_estudiantes.filter(e=>e.estado==='Inasistente').length],
+    ['','Retirados:',    asistencia_estudiantes.filter(e=>e.estado==='Retirado').length],
+    ['','Total:',        asistencia_estudiantes.length],
+  ];
+  const wsEst = XLSX.utils.aoa_to_sheet(wsEstData);
+  wsEst['!cols'] = [{wch:4},{wch:20},{wch:20},{wch:14},{wch:10},{wch:18},{wch:14},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, wsEst, 'Asistencia Estudiantes');
+
+  /* ── Hoja 3: Nuevos Estudiantes ── */
+  const wsNewData = [
+    ['E.T. J.R.G.S — BITÁCORA DIARIA'],
+    ['Institución:','E.T. José Ricardo Guillén Suárez'],
+    ['Sección:','Estudiantes Registrados'],
+    ['Fecha:',fechaFmt],
+    ['Exportado:',hoyFmt],
+    [],
+    ['#','Nombre','Apellido','Cédula','Mención','Año','Sección'],
+    ...nuevos_estudiantes.map((e,i)=>[
+      e.nro_lista||i+1, e.nombre||'', e.apellido||'',
+      e.cedula||'', e.mencion||'', ANO_BIT[e.grado]||e.grado||'', e.seccion||''
+    ]),
+    [],
+    ['','Total registrados:', nuevos_estudiantes.length],
+  ];
+  const wsNew = XLSX.utils.aoa_to_sheet(wsNewData);
+  wsNew['!cols'] = [{wch:4},{wch:20},{wch:20},{wch:14},{wch:14},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, wsNew, 'Nuevos Estudiantes');
+
+  XLSX.writeFile(wb, `bitacora_${fecha}.xlsx`);
+}
+
+document.getElementById('bit-fecha')?.addEventListener('change', cargarBitacora);
 </script>
 </body>
 </html>

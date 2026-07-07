@@ -1055,7 +1055,9 @@ app.get('/admin/docentes', (req, res) => {
 });
 
 app.get('/asistencia-docentes/hoy', (req, res) => {
-    const hoy = new Date().toISOString().split('T')[0];
+    // Usar hora Venezuela (UTC-4) para la fecha, igual que /registrar-asistencia
+    const ahoraVE = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const hoy = ahoraVE.toISOString().split('T')[0];
     const query = `
         SELECT ad.*, dv.nombre, dv.apellido
         FROM asistencia_docentes ad
@@ -1073,7 +1075,9 @@ app.get('/verificar-asistencia-docente', (req, res) => {
     const { usuario } = req.query;
     if (!usuario) return res.status(400).json({ error: 'Falta el usuario' });
 
-    const hoy = new Date().toISOString().split('T')[0];
+    // Usar hora Venezuela (UTC-4) para la fecha, igual que /registrar-asistencia
+    const ahoraVE = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const hoy = ahoraVE.toISOString().split('T')[0];
 
     db.query('SELECT id, nombre, apellido FROM docentes_v2 WHERE usuario = ?', [usuario], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -1101,7 +1105,9 @@ app.post('/asistencia-docentes', (req, res) => {
     const { docente_id, estado, bloque_clase, observaciones } = req.body;
     if (!docente_id || !estado) return res.status(400).json({ error: 'Faltan datos obligatorios' });
 
-    const fecha = new Date().toISOString().split('T')[0];
+    // Usar hora Venezuela (UTC-4) para la fecha, igual que /registrar-asistencia
+    const ahoraVE = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const fecha = ahoraVE.toISOString().split('T')[0];
     const query = `
         INSERT INTO asistencia_docentes (docente_id, fecha, estado, bloque_clase, observaciones)
         VALUES (?, ?, ?, ?, ?)
